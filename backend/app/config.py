@@ -2,7 +2,7 @@
 import os
 import shlex
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
@@ -11,6 +11,7 @@ class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True, hide_input_in_errors=True)
     gemini_api_key: SecretStr | None = Field(default=None, repr=False)
     gemini_model: str = Field(default='gemini-3.5-flash-lite', min_length=1)
+    environment: Literal['development', 'production'] = 'production'
     cors_origins: tuple[str, ...] = ('http://localhost:5173',)
     max_image_bytes: ClassVar[int] = 8 * 1024 * 1024
     max_upload_body_bytes: ClassVar[int] = 9 * 1024 * 1024
@@ -59,7 +60,7 @@ class Settings(BaseModel):
             for line in path.read_text().splitlines():
                 name, separator, raw = line.removeprefix('export ').partition('=')
                 name = name.strip()
-                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'CORS_ORIGINS'):
+                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'CORS_ORIGINS', 'MINDBRIDGE_ENV'):
                     try:
                         parts = shlex.split(raw, comments=True)
                     except ValueError:
@@ -71,6 +72,7 @@ class Settings(BaseModel):
         return cls(
             gemini_api_key=values.get('GEMINI_API_KEY') or None,
             gemini_model=values.get('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
+            environment=values.get('MINDBRIDGE_ENV', 'production'),
             cors_origins=tuple(x.strip() for x in values.get(
                 'CORS_ORIGINS', 'http://localhost:5173').split(',') if x.strip()),
         )

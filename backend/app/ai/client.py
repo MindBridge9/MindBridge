@@ -150,6 +150,11 @@ class GeminiAdapter:
                             response_json_schema=output_model.model_json_schema() if output_model else None,
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                             automatic_continuation=False,
+                            # Explicit low-latency OCR setting verified on these
+                            # models; omit it for arbitrary configured models.
+                            thinking_config=(types.ThinkingConfig(thinking_level='MINIMAL')
+                                             if operation == 'read' and settings.gemini_model.removeprefix('models/')
+                                             in ('gemini-3.5-flash-lite', 'gemini-3.1-flash-lite') else None),
                             http_options=types.HttpOptions(timeout=max(1, int(timeout * 1000)),
                                                           retry_options=types.HttpRetryOptions(attempts=1)),
                         )

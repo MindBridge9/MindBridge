@@ -23,6 +23,11 @@ def error_response(request: Request, status: int, code: str, message: str,
 
 async def validation_error(request: Request, exc: RequestValidationError):
     content_type = request.headers.get('content-type', '').split(';', 1)[0].lower()
+    if request.url.path == '/api/read':
+        if content_type != 'multipart/form-data':
+            return error_response(request, 415, 'INVALID_REQUEST', 'Use multipart/form-data with one image file.')
+        return error_response(request, 422, 'VALIDATION_ERROR', 'Send exactly one image file.',
+                              details=[{'field': 'image', 'reason': 'A single image file is required.'}])
     if content_type and content_type != 'application/json' and not content_type.endswith('+json'):
         return error_response(request, 415, 'INVALID_REQUEST', 'Use application/json for this request.')
     malformed = any(e['type'] == 'json_invalid' for e in exc.errors())
