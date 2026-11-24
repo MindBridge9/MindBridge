@@ -78,3 +78,11 @@
 # Keep an accidental archive copy out of the submission repository.
 /MindBridge-Planning.zip
 # END MindBridge private planning
+
+# Backend runtime secrets and local Python artifacts (private planning rules above remain intact).
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+/backend/.venv/
+/backend/**/__pycache__/
+/backend/.pytest_cache/
