@@ -1,0 +1,176 @@
+/* Dedicated reading surface styling driven strictly by CSS variables.
+   Source text strings are never mutated for formatting. */
+
+.mb-reading-surface {
+  background-color: var(--mb-reading-bg);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border);
+  transition: background-color var(--mb-transition-fast), color var(--mb-transition-fast);
+}
+
+.mb-reading-paper {
+  background-color: var(--mb-reading-surface);
+  color: var(--mb-reading-text);
+  border: 1px solid var(--mb-reading-border);
+  border-radius: var(--mb-radius-md);
+}
+
+.mb-reading-prose {
+  font-family: var(--mb-reading-font);
+  font-size: var(--mb-reading-size);
+  line-height: var(--mb-reading-line-height);
+  letter-spacing: var(--mb-reading-letter-spacing);
+  word-spacing: var(--mb-reading-word-spacing);
+  max-width: min(100%, var(--mb-reading-width));
+  color: var(--mb-reading-text);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+.mb-reading-prose-inline {
+  font-family: var(--mb-reading-font);
+  font-size: var(--mb-reading-size);
+  line-height: var(--mb-reading-line-height);
+  letter-spacing: var(--mb-reading-letter-spacing);
+  word-spacing: var(--mb-reading-word-spacing);
+  color: var(--mb-reading-text);
+  overflow-wrap: break-word;
+}
+
+.mb-reading-surface ::selection {
+  background-color: var(--mb-reading-highlight);
+  color: var(--mb-reading-highlight-text);
+}
+
+.mb-reading-surface :focus-visible {
+  outline: 3px solid var(--mb-focus);
+  outline-offset: 2px;
+}
+
+.mb-sentence-active {
+  background-color: var(--mb-reading-highlight);
+  color: var(--mb-reading-highlight-text);
+  border-radius: 4px;
+  padding: 0.08em 0.16em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.mb-term-trigger {
+  display: inline;
+  padding: 0.04em 0.1em;
+  margin: 0;
+  border: none;
+  border-radius: 3px;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
+  line-height: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.24em;
+  text-decoration-color: rgba(32, 76, 67, 0.65);
+  cursor: pointer;
+  transition: background-color var(--mb-transition-fast), text-decoration-color var(--mb-transition-fast);
+}
+
+[data-reading-theme='dark'] .mb-term-trigger {
+  text-decoration-color: rgba(246, 231, 165, 0.78);
+}
+
+.mb-term-trigger:hover,
+.mb-term-trigger:focus-visible {
+  background-color: var(--mb-reading-surface-muted);
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--mb-action);
+}
+
+[data-reading-theme='dark'] .mb-term-trigger:hover,
+[data-reading-theme='dark'] .mb-term-trigger:focus-visible {
+  text-decoration-color: #F6E7A5;
+}
+
+.mb-reading-input {
+  font-family: var(--mb-reading-font);
+  font-size: var(--mb-reading-size);
+  line-height: var(--mb-reading-line-height);
+  letter-spacing: var(--mb-reading-letter-spacing);
+  word-spacing: var(--mb-reading-word-spacing);
+  background-color: var(--mb-reading-surface);
+  color: var(--mb-reading-text);
+  border: 1.5px solid var(--mb-reading-border);
+  caret-color: var(--mb-reading-text);
+}
+
+/* Theme-aware chrome inside reading & learning surfaces */
+.mb-chrome-header {
+  background-color: var(--mb-reading-bg);
+  border-color: var(--mb-reading-border-subtle);
+  color: var(--mb-reading-text);
+}
+
+.mb-chrome-footer {
+  background-color: var(--mb-reading-surface-muted);
+  border-color: var(--mb-reading-border-subtle);
+  color: var(--mb-reading-text-muted);
+}
+
+.mb-chrome-dock {
+  background-color: var(--mb-reading-bg);
+  border-color: var(--mb-reading-border);
+  color: var(--mb-reading-text);
+}
+
+.mb-theme-surface {
+  background-color: var(--mb-reading-surface);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border);
+}
+
+.mb-theme-muted {
+  color: var(--mb-reading-text-muted);
+}
+
+.mb-theme-chip {
+  background-color: var(--mb-reading-surface-muted);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border-subtle);
+}
+
+[data-reading-theme='dark'] .mb-theme-btn-secondary {
+  background-color: var(--mb-reading-surface-muted);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border);
+}
+
+[data-reading-theme='dark'] .mb-theme-btn-secondary:hover:not(:disabled) {
+  background-color: #2E4B3F;
+}
+
+[data-reading-theme='dark'] .mb-theme-btn-quiet {
+  color: var(--mb-reading-text);
+}
+
+[data-reading-theme='dark'] .mb-theme-btn-quiet:hover:not(:disabled) {
+  background-color: #263E34;
+}
+
+[data-reading-theme='dark'] .mb-theme-selected-row {
+  background-color: #243C32;
+  border-color: #93B5A5;
+}
+
+[data-reading-theme='dark'] .mb-theme-control-panel {
+  background-color: var(--mb-reading-surface);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border);
+}
+
+[data-reading-theme='dark'] .mb-theme-input {
+  background-color: var(--mb-reading-bg);
+  color: var(--mb-reading-text);
+  border-color: var(--mb-reading-border);
+}

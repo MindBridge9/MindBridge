@@ -1,0 +1,144 @@
+:root {
+  /* Core MindBridge palette (DESIGN.md) */
+  --mb-bg: #F7F5ED;
+  --mb-surface: #FFFFFF;
+  --mb-surface-muted: #EFECE0;
+  --mb-text: #20372D;
+  --mb-text-muted: #3F584D;
+  --mb-action: #204C43;
+  --mb-action-hover: #193C35;
+  --mb-action-text: #FFFFFF;
+  --mb-support: #DCE9DF;
+  --mb-support-text: #20372D;
+  --mb-highlight: #F6E7A5;
+  --mb-highlight-text: #20372D;
+
+  /* Semantic states (all >=4.5:1 on cream/white) */
+  --mb-success: #356B51;
+  --mb-success-bg: #E6F1EA;
+  --mb-warning: #9A601C;
+  --mb-warning-bg: #FDF3E1;
+  --mb-error: #A63D40;
+  --mb-error-bg: #FAECEC;
+
+  /* Structural borders & focus (>=3:1 against adjacent surface) */
+  --mb-border: #8B9B91;
+  --mb-border-subtle: #C9D2C8;
+  --mb-focus: #204C43;
+
+  /* Typography */
+  --mb-font-ui: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mb-font-reading-lexend: 'Lexend', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mb-font-reading-manrope: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mb-font-reading-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Radii & shadows */
+  --mb-radius-sm: 6px;
+  --mb-radius-md: 12px;
+  --mb-shadow-overlay: 0 12px 32px rgba(32, 55, 45, 0.14), 0 2px 6px rgba(32, 55, 45, 0.08);
+  --mb-shadow-sticky: 0 -4px 16px rgba(32, 55, 45, 0.08);
+
+  /* Layout & motion */
+  --mb-gutter: 16px;
+  --mb-shell-max: 1200px;
+  --mb-transition-fast: 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Reading preference defaults (overridden dynamically by PreferencesContext) */
+  --mb-reading-bg: #F7F5ED;
+  --mb-reading-surface: #FFFFFF;
+  --mb-reading-surface-muted: #EFECE0;
+  --mb-reading-text: #20372D;
+  --mb-reading-text-muted: #3F584D;
+  --mb-reading-border: #8B9B91;
+  --mb-reading-border-subtle: #C9D2C8;
+  --mb-reading-highlight: #F6E7A5;
+  --mb-reading-highlight-text: #20372D;
+  --mb-reading-font: var(--mb-font-reading-lexend);
+  --mb-reading-size: 20px;
+  --mb-reading-line-height: 1.8;
+  --mb-reading-letter-spacing: 0em;
+  --mb-reading-word-spacing: 0em;
+  --mb-reading-width: 65ch;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --mb-gutter: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --mb-gutter: 32px;
+  }
+}
+
+/* Theme variants applied to reading/learning surfaces */
+[data-reading-theme='cream'] {
+  --mb-reading-bg: #F7F5ED;
+  --mb-reading-surface: #FFFFFF;
+  --mb-reading-surface-muted: #EFECE0;
+  --mb-reading-text: #20372D;
+  --mb-reading-text-muted: #3F584D;
+  --mb-reading-border: #8B9B91;
+  --mb-reading-border-subtle: #C9D2C8;
+  --mb-reading-highlight: #F6E7A5;
+  --mb-reading-highlight-text: #20372D;
+}
+
+[data-reading-theme='paper'] {
+  --mb-reading-bg: #FFFFFF;
+  --mb-reading-surface: #FAF8F2;
+  --mb-reading-surface-muted: #F2EFE4;
+  --mb-reading-text: #20372D;
+  --mb-reading-text-muted: #3F584D;
+  --mb-reading-border: #8B9B91;
+  --mb-reading-border-subtle: #C9D2C8;
+  --mb-reading-highlight: #F6E7A5;
+  --mb-reading-highlight-text: #20372D;
+}
+
+[data-reading-theme='dark'] {
+  --mb-reading-bg: #17251F;
+  --mb-reading-surface: #1F322A;
+  --mb-reading-surface-muted: #263E34;
+  --mb-reading-text: #F7F5ED;
+  --mb-reading-text-muted: #D5E2DA;
+  --mb-reading-border: #7E9B8E;
+  --mb-reading-border-subtle: #3B594C;
+  --mb-reading-highlight: #204C43;
+  --mb-reading-highlight-text: #F7F5ED;
+  --mb-focus: #F6E7A5;
+}
+
+@keyframes mb-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mb-dialog-panel {
+  animation: mb-dialog-enter 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mb-transition-fast: 0ms;
+  }
+
+  .mb-dialog-panel {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

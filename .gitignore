@@ -123,3 +123,14 @@ service-account*.json
 *.pfx
 .DS_Store
 Thumbs.db
+
+# Frontend dependencies, local environment and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+/frontend/.env
+/frontend/.env.*
+!/frontend/.env.example
+
