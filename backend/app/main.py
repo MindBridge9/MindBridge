@@ -1,5 +1,6 @@
 """MindBridge backend. Development docs require MINDBRIDGE_ENV=development."""
 import asyncio
+import time
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -10,7 +11,8 @@ from starlette.middleware.cors import CORSMiddleware
 from .api.health import router
 from .api.reading import router as reading_router
 from .api.learning import router as learning_router
-from .ai.client import AIError, gemini_lifespan
+from .ai.client import AIError, gemini_lifespan, logger
+from .limits import RequestLimits, AI_PATHS
 from .config import Settings
 from .errors import error_response, http_error, validation_error
 from .validation.images import ReadBodyLimit
@@ -35,9 +37,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Added before request_envelope so capped-upload responses have request IDs.
     app.add_middleware(ReadBodyLimit, limit=settings.max_upload_body_bytes)
+    app.add_middleware(RequestLimits, settings=settings)
 
     @app.middleware('http')
     async def request_envelope(request: Request, call_next):
+        started = time.monotonic()
         request.state.request_id = str(uuid4())
         try:
             response = await call_next(request)
@@ -47,6 +51,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                       'Something went wrong. Please try again.', retryable=True)
         response.headers['X-Request-ID'] = request.state.request_id
         response.headers['Cache-Control'] = 'no-store'
+        route = request.scope.get('path')
+        safe_route = route if route in AI_PATHS or route == '/api/health' else 'unmatched'
+        logger.info('request_completed request_id=%s route=%s status=%d seconds=%.3f',
+                    request.state.request_id, safe_route, response.status_code, time.monotonic()-started)
         return response
 
     # Wrap error envelopes as well as successful responses for browser recovery.

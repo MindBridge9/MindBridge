@@ -12,11 +12,11 @@ from app.tests.test_evaluation import evaluation_request, feedback, ANSWERS, pos
 def retry_request(case='correct', narrow=True):
     data=evaluation_request('misconception'); baseline=feedback('misconception')
     baseline.pop('answer_interpretation'); baseline.pop('recovery'); baseline['recommendation']='try_retry'
-    baseline['follow_up_question']['id']='question-retry'
-    baseline['follow_up_question']['criterion_ids']=['energy']
+    baseline['follow_up_question']=dict(id='question-retry',text=baseline['assessments'][0]['follow_up_question'],criterion_ids=['energy'])
     if not narrow:
         baseline['follow_up_question'].update(text='Explain the roles of sunlight, water and carbon dioxide when plants make glucose.',criterion_ids=['energy','materials'])
     for assessment,c in zip(baseline['assessments'],data['plan']['objective']['criteria']):
+        assessment.pop('follow_up_question')
         assessment['source_refs']=copy.deepcopy(c['source_refs'])
     previous=dict(id='initial-attempt',plan_id=data['plan']['id'],question=copy.deepcopy(data['question']),
         answer=data['answer'],assistance=copy.deepcopy(data['assistance']),submitted_at='2026-11-25T12:00:00Z',feedback=baseline)
@@ -25,9 +25,10 @@ def retry_request(case='correct', narrow=True):
 
 
 def retry_feedback(case='correct',narrow=True):
-    result=feedback(case); result['follow_up_question']=None
+    result=feedback(case)
+    for a in result['assessments']: a['follow_up_question']=None
     if narrow:
-        result['assessments'][1].update(status='not_tested',student_quote=None)
+        result['assessments']=result['assessments'][:1]
     return result
 
 
@@ -113,9 +114,9 @@ def test_uncertain_retry_then_clarification_reuses_initial_baseline(api):
 @pytest.mark.parametrize('change',['third_question','bad_quote','assessed_untested','no_interpretation'])
 def test_bad_retry_output_shares_repair_budget(api,change):
     bad=retry_feedback()
-    if change=='third_question': bad['follow_up_question']=feedback()['follow_up_question']
+    if change=='third_question': bad['assessments'][0]['follow_up_question']=feedback()['assessments'][0]['follow_up_question']
     if change=='bad_quote': bad['assessments'][0]['student_quote']='Invented answer'
-    if change=='assessed_untested': bad['assessments'][1].update(status='demonstrated',student_quote=ANSWERS['correct'])
+    if change=='assessed_untested': bad['assessments'].append(dict(criterion_id='materials',status='demonstrated',student_quote=ANSWERS['correct'],explanation='Shown.',follow_up_question=None))
     if change=='no_interpretation': bad['answer_interpretation']=None
     api[1]['outcomes']=[bad,retry_feedback()]
     response=repair_post(api,retry_request()); assert response.status_code==200,response.text
@@ -165,7 +166,7 @@ def test_short_or_specific_answers_are_not_locally_graded(text):
 
 def test_safe_rejection_diagnostics_exclude_answer_source(api,caplog):
     data=retry_request(); data['answer']+=' SENSITIVE_TEST_MARKER'
-    bad=retry_feedback(); bad['follow_up_question']=feedback()['follow_up_question']
+    bad=retry_feedback(); bad['assessments'][0]['follow_up_question']=feedback()['assessments'][0]['follow_up_question']
     api[1]['outcomes']=[bad,bad]
     response=repair_post(api,data)
     assert response.status_code==502

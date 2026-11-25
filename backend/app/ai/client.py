@@ -22,6 +22,7 @@ from google.genai import errors, types
 from pydantic import BaseModel, ValidationError
 
 from app.config import Settings
+from .attempts import active_budget
 
 Output = TypeVar('Output', bound=BaseModel)
 Operation = Literal['read', 'simplify', 'prepare', 'check', 'define', 'explain']
@@ -30,25 +31,27 @@ Operation = Literal['read', 'simplify', 'prepare', 'check', 'define', 'explain']
 class AIError(Exception):
     """Safe fields for the existing error_response envelope; no raw exception."""
 
-    def __init__(self, code, status, message, *, retryable=False, retry_after_seconds=None):
+    def __init__(self, code, status, message, *, retryable=False, retry_after_seconds=None, fallback_eligible=False):
         super().__init__(message)
         self.code = code
         self.status = status
         self.message = message
         self.retryable = retryable
         self.retry_after_seconds = retry_after_seconds
+        self.provider_retry_after_seconds = retry_after_seconds
+        self.fallback_eligible = fallback_eligible
 
 
 def _invalid():
     return AIError('AI_INVALID_RESPONSE', 502, 'The AI response could not be validated. Please retry.', retryable=True)
 
 
-def _timeout():
-    return AIError('AI_TIMEOUT', 504, 'The AI request timed out. Please retry.', retryable=True)
+def _timeout(*, fallback_eligible=False):
+    return AIError('AI_TIMEOUT', 504, 'The AI request timed out. Please retry.', retryable=True, fallback_eligible=fallback_eligible)
 
 
-def _unavailable():
-    return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.', retryable=True)
+def _unavailable(*, fallback_eligible=False):
+    return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.', retryable=True, fallback_eligible=fallback_eligible)
 
 
 # Inherits Uvicorn's configured handler; only explicitly constructed metadata.
@@ -120,9 +123,10 @@ def _provider_error(exc):
         return AIError('AI_INVALID_RESPONSE', 502, 'The AI request configuration was rejected.')
     if exc.code in (408, 504):
         return AIError('AI_TIMEOUT', 504, 'The AI request timed out. Please retry.',
-                       retryable=True, retry_after_seconds=_public_delay(exc))
+                       retryable=True, retry_after_seconds=_public_delay(exc), fallback_eligible=True)
     return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.',
-                   retryable=exc.code in (500, 502, 503, 504), retry_after_seconds=_public_delay(exc))
+                   retryable=exc.code in (500, 502, 503, 504), retry_after_seconds=_public_delay(exc),
+                   fallback_eligible=exc.code in (500, 502, 503, 504))
 
 
 class GeminiAdapter:
@@ -179,11 +183,12 @@ class GeminiAdapter:
         total = settings.read_deadline_seconds if operation == 'read' else settings.text_deadline_seconds
         ceiling = settings.read_call_timeout_seconds if operation == 'read' else settings.text_call_timeout_seconds
         loop = asyncio.get_running_loop()
-        deadline = loop.time() + total
+        shared = active_budget.get()
+        deadline = min(loop.time() + total, shared.deadline) if shared else loop.time() + total
         try:
             async with asyncio.timeout_at(deadline):
                 async with self._slots:
-                    for attempt in range(settings.max_provider_attempts):
+                    for attempt in range(1 if shared else settings.max_provider_attempts):
                         remaining = deadline - loop.time()
                         if remaining <= 0:
                             raise _timeout()
@@ -210,6 +215,8 @@ class GeminiAdapter:
                                    schema_bytes=len(schema_bytes), schema_hash=hashlib.sha256(schema_bytes).hexdigest()[:12],
                                    max_output_tokens=budgets[operation])
                         try:
+                            if shared:
+                                shared.consume()
                             async with asyncio.timeout(timeout):
                                 response = await self._client.models.generate_content(
                                     model=settings.gemini_model,
@@ -223,11 +230,12 @@ class GeminiAdapter:
                             logger.info('gemini_attempt %s', json.dumps(row))
                             return result
                         except (TimeoutError, httpx.TimeoutException):
-                            failure = _timeout()
+                            failure = _timeout(fallback_eligible=True)
                             row["category"] = "timeout"
                             retry = True
                         except errors.APIError as exc:
                             failure = _provider_error(exc)
+                            failure.provider_retry_after_seconds = _retry_after(exc)
                             msg = (exc.message or '').lower()
                             row.update(category=_category(exc), upstream_http=exc.code,
                                        upstream_status=exc.status if exc.status in {
@@ -242,7 +250,7 @@ class GeminiAdapter:
                                 retry = True
                                 wait = failure.retry_after_seconds
                         except httpx.TransportError:
-                            failure, retry = _unavailable(), True
+                            failure, retry = _unavailable(fallback_eligible=True), True
                             row["category"] = "transport"
                         except AIError as exc:
                             failure = exc
@@ -251,7 +259,7 @@ class GeminiAdapter:
                         wait = max(wait, _backoff(attempt))
                         # Require room for a full call ceiling after backoff; do
                         # not spend quota on a retry with only milliseconds left.
-                        retry = (retry and attempt + 1 < settings.max_provider_attempts
+                        retry = (retry and shared is None and attempt + 1 < settings.max_provider_attempts
                                  and deadline - loop.time() >= wait + ceiling)
                         row.update(seconds=round(loop.time() - started, 3), public_code=failure.code,
                                    retry_scheduled=retry, retry_delay=round(wait, 3) if retry else None,

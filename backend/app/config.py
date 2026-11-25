@@ -4,11 +4,18 @@ import shlex
 from pathlib import Path
 from typing import ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True, hide_input_in_errors=True)
+    ai_enabled: bool = True
+    ai_fallback_enabled: bool = False
+    client_requests_per_minute: int = Field(default=6, ge=1, le=1000)
+    global_requests_per_minute: int = Field(default=12, ge=1, le=10000)
+    global_requests_per_day: int = Field(default=400, ge=1, le=1000000)
+    max_rate_limit_clients: int = Field(default=2048, ge=1, le=100000)
+    trusted_proxy_cidrs: tuple[str, ...] = ()
     ai_provider: Literal['gemini', 'groq'] = 'gemini'
     groq_api_key: SecretStr | None = Field(default=None, repr=False)
     groq_model: str = Field(default='qwen/qwen3.8-27b', min_length=1)
@@ -35,6 +42,45 @@ class Settings(BaseModel):
     max_provider_attempts: ClassVar[int] = 2
     max_concurrent_ai_calls: ClassVar[int] = 2
 
+    @field_validator('trusted_proxy_cidrs')
+    @classmethod
+    def explicit_proxy_networks(cls, values):
+        from ipaddress import ip_network
+        for value in values:
+            network = ip_network(value, strict=False)
+            if network.prefixlen == 0:
+                raise ValueError('Trust explicit proxy networks, never all addresses.')
+        return values
+
+    @model_validator(mode='after')
+    def fallback_configuration(self):
+        if self.ai_fallback_enabled and (self.ai_provider != 'groq' or
+            not self.groq_api_key or not self.groq_api_key.get_secret_value().strip() or
+            not self.gemini_api_key or not self.gemini_api_key.get_secret_value().strip()):
+            raise ValueError('Fallback requires Groq primary and both backend API keys.')
+        return self
+
+    def validate_production(self):
+        from urllib.parse import urlsplit
+        from ipaddress import ip_address
+        if self.environment != 'production' or not self.cors_origins:
+            raise ValueError('Production requires explicit production mode and frontend origins.')
+        for origin in self.cors_origins:
+            parsed = urlsplit(origin)
+            if parsed.scheme != 'https' or parsed.hostname in ('localhost', 'testclient'):
+                raise ValueError('Production frontend origins require HTTPS and public hosts.')
+            try:
+                address = ip_address(parsed.hostname)
+            except ValueError:
+                address = None
+            if address is not None and not address.is_global:
+                raise ValueError('Production frontend origins require public hosts.')
+            if parsed.hostname.endswith('.localhost'):
+                raise ValueError('Production frontend origins require public hosts.')
+        key = self.groq_api_key if self.ai_provider == 'groq' else self.gemini_api_key
+        if self.ai_enabled and (key is None or not key.get_secret_value().strip()):
+            raise ValueError('The selected production provider requires its backend API key.')
+
     @field_validator('gemini_model', 'groq_model')
     @classmethod
     def model_not_blank(cls, value):
@@ -50,8 +96,11 @@ class Settings(BaseModel):
             parsed = urlsplit(origin)
             if (parsed.scheme not in ('http', 'https') or not parsed.netloc
                     or parsed.path or parsed.query or parsed.fragment
-                    or parsed.username or parsed.password or '*' in origin):
+                    or parsed.username is not None or parsed.password is not None or '*' in origin
+                    or parsed.hostname is None or not origin.isascii() or any(c.isspace() for c in origin)):
                 raise ValueError('CORS requires explicit HTTP origins without trailing paths.')
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError('CORS requires a valid port.')
         return origins
 
     @classmethod
@@ -63,7 +112,9 @@ class Settings(BaseModel):
             for line in path.read_text().splitlines():
                 name, separator, raw = line.removeprefix('export ').partition('=')
                 name = name.strip()
-                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'GROQ_API_KEY', 'GROQ_MODEL', 'AI_PROVIDER', 'CORS_ORIGINS', 'MINDBRIDGE_ENV'):
+                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'GROQ_API_KEY', 'GROQ_MODEL', 'AI_PROVIDER', 'CORS_ORIGINS', 'MINDBRIDGE_ENV', 'AI_ENABLED', 'AI_FALLBACK_ENABLED',
+                    'CLIENT_REQUESTS_PER_MINUTE', 'GLOBAL_REQUESTS_PER_MINUTE', 'GLOBAL_REQUESTS_PER_DAY',
+                    'MAX_RATE_LIMIT_CLIENTS', 'TRUSTED_PROXY_CIDRS'):
                     try:
                         parts = shlex.split(raw, comments=True)
                     except ValueError:
@@ -73,6 +124,13 @@ class Settings(BaseModel):
                     values[name] = parts[0] if parts else ''
         values.update(os.environ)
         return cls(
+            ai_enabled=values.get('AI_ENABLED', 'true'),
+            ai_fallback_enabled=values.get('AI_FALLBACK_ENABLED', 'false'),
+            client_requests_per_minute=values.get('CLIENT_REQUESTS_PER_MINUTE', 6),
+            global_requests_per_minute=values.get('GLOBAL_REQUESTS_PER_MINUTE', 12),
+            global_requests_per_day=values.get('GLOBAL_REQUESTS_PER_DAY', 400),
+            max_rate_limit_clients=values.get('MAX_RATE_LIMIT_CLIENTS', 2048),
+            trusted_proxy_cidrs=tuple(x.strip() for x in values.get('TRUSTED_PROXY_CIDRS', '').split(',') if x.strip()),
             ai_provider=values.get('AI_PROVIDER', 'gemini'),
             groq_api_key=values.get('GROQ_API_KEY') or None,
             groq_model=values.get('GROQ_MODEL', 'qwen/qwen3.8-27b'),

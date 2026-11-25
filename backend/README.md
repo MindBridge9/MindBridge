@@ -729,3 +729,190 @@ clarification, source integrity and safe diagnostics across both providers. An
 initial final-suite invocation from the repository root failed collection; rerunning
 from the documented backend directory produced this passing result. Compilation
 and `git diff --check` passed. Tests do not establish provider judgement quality.
+
+## Final understanding-loop stabilisation
+
+Confirmed by a bounded normal-Uvicorn diagnostic using the saved live-generated
+synthetic plan: both old-format attempts had repeated=False, duplicate_ids=False,
+target_mismatch=True. One supplied one wrong target; the other supplied two IDs
+when one was required. The recorded `follow_up_coverage` failure was target metadata,
+not distinctness. The model's internal reason for choosing those IDs is unknown.
+
+`evaluate-v7` now generates a question candidate beside each TESTED criterion's
+assessment. Python selects the first priority misconception (otherwise missing/
+unclear, otherwise tested) in question order and assigns its sole criterion ID and
+new question ID. This is permitted narrower coverage; other criteria are honestly
+not_retested at retry. The model cannot declare follow-up coverage. Unknown or
+missing tested assessment IDs still fail. Untested assessments are constructed as
+not_tested with fixed validated rubric refs; they are never model knowledge judgements.
+Public contracts, original source/rubric, assistance and comparison rules are intact.
+No extra AI call was added. Input is smaller because only tested criteria go to AI.
+
+Repeat-question and literal answer-copying checks remain. A new regression/check
+rejects a quoted multiword source relationship embedded in the selected question
+(the actual observed phrase was 'light energy from sunlight'). This is a conservative
+leakage guard, not general semantic verification. Single academic terms remain
+allowed. Repair instructions prohibit unsupported category labels/analogies and
+ask for concise, criterion-specific feedback. Ambiguity policy remains unchanged.
+
+Bounded live observations, Groq, normal Uvicorn, same saved synthetic live plan:
+
+| Format/check | HTTP / seconds | Provider attempts | Observation |
+|---|---|---|---|
+| Old-format diagnostic | initial 502 / 4.724 | 2 | Confirmed wrong target metadata, no repeated wording/duplicate IDs. |
+| Global text-only question | initial 200 / 2.588; retry 429 / 2.228 | 1 + 2 | IDs fixed, but question still mixed energy/materials; retry omitted untested row then hit rate limit. |
+| Per-criterion candidates v6 | initial 200 / 5.503; retry 200 / 1.023 | 2 + 1 | Complete API journey; energy misconception became demonstrated, independent_in_app=true, materials not_retested, source/rubric unchanged. |
+| Final v7 stronger leakage protection | initial 502 / 3.869 | 2 | Invalid repair/evaluation output rejected; retry stage not reached. |
+
+Manual review of the v6 journey found that the question quoted the expected energy
+phrase and the repair added the classification 'glucose is food' absent from this
+source. Thus its structural loop pass is **not** a semantic-quality pass. v7 adds
+protection/instructions for those findings, but its final bounded check failed.
+Provider calls stopped; no mock or weaker validation was substituted. B07/B08 live
+quality acceptance remains open and B09 is not cleared. Earlier source-fidelity,
+frontend integration and release gates remain open; capability flags remain off.
+
+Archived validated synthetic v6 results/evidence are at
+`/tmp/mindbridge-loop-v6-{initial,retry,evidence}.json`; final failure metadata is
+`/tmp/mindbridge-b08-evidence.json`. The smoke runner now clears its own initial/
+retry result files before starting so stale successes cannot look like current
+results after failure. The original successful prepare artifact is retained.
+
+Manual command from backend (each loop spends quota):
+`.venv/bin/python -m app.tests.smoke_retry --resume-prepare` against a normally
+started server on port 8765. Omit the option to generate a new plan. Always inspect
+question meaning, answer leakage, repair support and actual comparison, not just
+`structural_loop_passed`.
+
+Changed: learning service, evaluation prompt, evaluation/retry fixture helpers,
+new `test_followup_stability.py`, smoke runner and this README. Final command:
+`MINDBRIDGE_PRIVATE_CONTRACT=1 .venv/bin/python -m pytest app/tests -q` from backend
+— **734 passed**, no skips, one existing Starlette/httpx warning (59.87 s).
+Compilation and `git diff --check` passed. No provider/dependency/billing/frontend/
+public-contract changes, B09 work or Git staging/history changes. Servers stopped.
+
+## Independent B09 tools and final learning-quality guard
+
+Preparation-time follow-ups cannot be retained across the current stateless HTTP
+journey without a new LearningPlan field or hidden server-side plan storage. Neither
+is in the approved architecture/contract. Generating and discarding them would waste
+tokens. The current per-criterion candidate mechanism is retained; no extra AI call,
+plan cache or contract extension was introduced. `evaluate-v8` sharpens role-comparison
+instructions, and a conservative validator rejects the observed unsupported
+'glucose is food'/'food called glucose' classification when food is absent from
+source. This targeted guard is not general semantic entailment verification. Existing
+question-leakage, ambiguity, SourceLens and independent-retry checks remain intact.
+
+The B08 critical-loop quality dependency is still unmet. Only independent B09
+components were implemented: POST /api/define and POST /api/explain. Both use the
+selected common provider, current operation budgets/deadlines/<=2 attempts and safe
+errors. They validate source IDs and metadata, reject uncertain selections, exclude
+uncertain neighbours from generation, enforce the existing English-only schemas,
+and validate exact source quotations inside the shared retry budget. Definition
+requires the phrase in the selected chunk and its exact surrounding substring;
+contextual evidence must quote that phrase in the selected sentence. Explanation
+supports an inferred concept, requires selected-chunk evidence, and checks that
+unique important terms occur in both cited source and generated text. Unsupported
+context returns 422 INSUFFICIENT_SOURCE without fabricated output. Original source
+and request values are preserved; model-authored IDs/language claims are not used.
+All new JSON routes receive the existing 256 KiB cap and request deadline.
+
+Actual single bounded verification session, normal Uvicorn, Groq, synthetic source:
+
+| Check | HTTP / latency | Provider attempts | Observation |
+|---|---|---|---|
+| Saved-plan learning loop | 502 / 3.521 s | 2 | Inconsistent uncertainty/other local validation rejected; retry not reached. No further learning calls. |
+| Define glucose | 200 / 0.543 s | 1 | Valid English definition/context/example and exact reference; source unchanged. |
+| Explain sunlight's role | 200 / 0.408 s | 1 | Source-supported energy/material explanation, terms and exact reference; source unchanged. |
+
+Manual review: the glossary provides a general AI-generated sugar/carbohydrate
+meaning, which the contract permits separately from textbook quotations. Its
+contextual meaning and example match the supplied photosynthesis sentence. The
+explanation correctly identifies sunlight as the energy source. Both could use
+simpler vocabulary (e.g. 'make' instead of 'synthesize'); these two checks do not
+prove broad content quality, language detection or accessibility. No browser cache
+integration was tested. Evidence: `/tmp/mindbridge-b09-tools-evidence.json`,
+`/tmp/mindbridge-b09-define-result.json`, `...-explain-result.json`; learning failure
+metadata remains `/tmp/mindbridge-b08-evidence.json` while temporary files exist.
+
+All seven approved routes now have backend implementations. That does not close
+all-P0/B09 acceptance. Learning semantic quality, OCR fidelity, broader content tests,
+frontend integration and student/provider review remain open. Remaining B09 abuse
+limits/kill-switch/activation hardening was not started under the unmet critical-loop
+dependency. Health/capability flags remain off pending Owner 4 approval. No P1,
+provider change/fallback, billing, frontend, contract, dependency, planning-document
+or Git staging/history changes. Task-started server stopped cleanly.
+
+Manual test:
+
+```bash
+cd /home/BYE/Nothing/MindBridge/backend
+MINDBRIDGE_ENV=development .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --workers 1
+# Another terminal from backend; live calls spend quota:
+.venv/bin/python -m app.tests.smoke_reading_tools
+MINDBRIDGE_PRIVATE_CONTRACT=1 .venv/bin/python -m pytest app/tests -q
+```
+
+Swagger: http://127.0.0.1:8765/docs → POST /api/define → Try it out → paste:
+
+```json
+{
+  "source": {
+    "page_id": "11111111-1111-4111-8111-111111111111",
+    "chunks": [{"id": "c0001", "kind": "paragraph", "quality": "clear", "text": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis."}],
+    "key_terms": [], "key_terms_status": "unavailable"
+  },
+  "chunk_id": "c0001", "language": "en", "phrase": "glucose",
+  "surrounding_sentence": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis."
+}
+```
+
+For POST /api/explain, retain source/chunk_id/language, remove phrase and
+surrounding_sentence and add `"concept": "The role of sunlight"`. Execute once and
+inspect wording plus exact quotations. Preserve the source and phrase/concept on
+all failures; do not substitute fixtures. Production docs remain disabled.
+
+Previous checkpoint full regression: **826 passed**, no skips, one existing Starlette/httpx
+warning, 62.35 s. Targeted reading-tool/repair tests: 111 passed across both adapters.
+Compilation and `git diff --check` passed. Mocked tests verify validation and recovery,
+not AI quality. Independent tools are ready for backend/integration review; full B09
+acceptance is not passed.
+
+## Final backend hardening and deployment preparation
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for exact Render build/start/environment settings,
+frontend connections, admission limits, proxy trust, recovery and remaining gates.
+New independent hardening includes bounded per-client/global limits, two active
+requests, a provider kill switch, whole-request deadlines, metadata-only request
+logs, a validated single-worker production launcher, and optional Groq→Gemini
+fallback sharing at most two attempts and one deadline. Fallback remains disabled;
+no live provider calls, deployments or capability activations were performed.
+Existing OCR/source validation and learning semantic gates remain unchanged.
+
+Hardening verification: **871 passed**, no skips, one existing Starlette/httpx
+deprecation warning (62.25 s), including all 826 prior tests and 45 new tests.
+The seven approved routes retain matching request/success contracts and local
+schema equivalence. `git diff --check` passed.
+
+A clean-source export of 60 current Git-eligible backend files (not a commit or
+literal clone) started under Python 3.12 with a separate production-only virtualenv.
+All 33 pinned production dependency versions matched; `pip check` passed. No private
+planning pack, `.env`, workspace virtualenv or frontend was present. Actual
+production-Uvicorn checks passed: health 200/all capabilities false, docs/OpenAPI
+404, allowed preflight 200, disallowed preflight 400, invalid OCR content type 415,
+other five POST schemas 422, per-client limit 429 with Retry-After, and health still
+200 after saturation. Responses took 0.7–12.7 ms locally. The initial smoke assertion
+incorrectly expected 422 for JSON sent to the multipart OCR endpoint; corrected to
+its existing 415 contract and reran from reset counters. Both servers shut down
+cleanly. Evidence: `/tmp/mindbridge-production-hardening-evidence.json` while present.
+These are runtime/validation checks with synthetic credentials, **zero live AI
+calls**, and do not establish provider or learning quality.
+
+Files changed for this hardening task: `.env.example`, `.python-version`,
+`DEPLOYMENT.md`, this README, `requirements.in`, `requirements.txt`,
+`app/config.py`, `app/main.py`, `app/limits.py`, `app/deployment.py`,
+`app/ai/attempts.py`, `app/ai/fallback.py`, `app/ai/client.py`, `app/ai/groq.py`,
+`app/ai/providers.py`, `app/validation/images.py`, `app/tests/test_fallback.py`,
+`app/tests/test_hardening.py`, `app/tests/test_private_contract.py`.
+Earlier uncommitted learning/reading changes were preserved. No Git staging/history
+changes, provider-model changes, frontend changes or deployment were performed.

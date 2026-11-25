@@ -32,7 +32,7 @@ class ReadBodyLimit:
         if declared is not None and (not declared.isascii() or not declared.isdigit()):
             return await error_response(request, 400, 'INVALID_REQUEST', 'Invalid request length.')(scope, receive, send)
         messages, size = [], 0
-        if declared is not None and int(declared) > self.limit:
+        if declared is not None and (len(declared) > 12 or int(declared) > self.limit):
             size = self.limit + 1
         while size <= self.limit:
             message = await receive()

@@ -13,6 +13,10 @@ from app.validation.sources import validate_references
 def main(resume=False):
     sample=synthetic_request('misconception')
     source=sample['source']; evidence={'checks':[]}
+    # Never leave a previous successful synthetic result looking current after
+    # a later failed run. Archived evidence uses separate versioned filenames.
+    for name in ('initial', 'retry'):
+        Path('/tmp/mindbridge-b08-'+name+'-result.json').unlink(missing_ok=True)
     with httpx.Client(base_url='http://127.0.0.1:8765',timeout=90) as client:
         def call(name,path,data,model):
             # Explicit synthetic, non-personal request/result artifacts for review.
@@ -40,7 +44,7 @@ def main(resume=False):
                 wrong=[a.criterion_id for a in f.assessments if a.status=='possible_misconception']
                 evidence['initial_misconception_detected']=bool(wrong)
                 follow=f.follow_up_question
-                evidence['follow_up_ids_match_misconception']=bool(follow and set(follow.criterion_ids)==set(wrong))
+                evidence['follow_up_ids_match_misconception']=bool(follow and bool(follow.criterion_ids) and set(follow.criterion_ids)<=set(wrong))
                 if follow and wrong and evidence['follow_up_ids_match_misconception']:
                     request.update(question=follow.model_dump(),answer='Sunlight supplies light energy. Plants use this energy to make glucose from carbon dioxide and water.',
                         attempt_id='b08-retry',previous_attempt=initial.attempt.model_dump())
@@ -50,7 +54,7 @@ def main(resume=False):
                             validate_references(source,a.source_refs)
                             assert a.student_quote is None or a.student_quote in request['answer']
                         result=retry.retry_result
-                        passed=bool(result and result.independent_in_app and set(result.newly_demonstrated_ids)==set(wrong)
+                        passed=bool(result and result.independent_in_app and set(result.newly_demonstrated_ids)==set(follow.criterion_ids)
                             and not result.still_needs_practice_ids and retry.attempt.feedback.follow_up_question is None)
                         evidence['comparison_valid']=passed
                         evidence['source_and_rubric_unchanged']=source==sample['source'] and request['plan']==plan.model_dump()

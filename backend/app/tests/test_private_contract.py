@@ -75,3 +75,20 @@ def test_required_nullable_extra_fields():
             if not any(x.get('type') == 'null' for x in spec.get('anyOf', [])):
                 with pytest.raises(ValidationError):
                     adapter.validate_python({**payload, field: None})
+
+
+def test_all_seven_endpoint_request_and_success_contracts():
+    from app.main import create_app
+    from app.config import Settings
+    approved=json.loads((ROOT / 'docs/contracts/openapi.json').read_text())['paths']
+    actual=create_app(Settings(environment='development',ai_enabled=False)).openapi()['paths']
+    assert set(actual)==set(approved) and len(actual)==7
+    for path,operations in approved.items():
+        for method,operation in operations.items():
+            generated=actual[path][method]
+            assert generated['operationId']==operation['operationId']
+            assert generated['responses']['200']['content']==operation['responses']['200']['content']
+            if path!='/api/read' and method=='post':
+                assert generated['requestBody']['content']==operation['requestBody']['content']
+            elif path=='/api/read':
+                assert 'multipart/form-data' in generated['requestBody']['content']

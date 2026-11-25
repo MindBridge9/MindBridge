@@ -16,14 +16,14 @@ def test_real_uuid_criterion_ids_assigned_from_assessments(api):
     api[1]['outcomes']=[result]; before=copy.deepcopy(data)
     response=post(api,data); assert response.status_code==200,response.text
     follow=response.json()['attempt']['feedback']['follow_up_question']
-    assert follow['criterion_ids']==ids[:1] and follow['text']==result['follow_up_question']['text']
+    assert follow['criterion_ids']==ids[:1] and follow['text']==next(a['follow_up_question'] for a in result['assessments'] if a['criterion_id']==ids[0])
     assert data==before and len(api[1]['calls'])==1
 
 
 @pytest.mark.parametrize('text',[evaluation_request()['question']['text'].upper(),
     'Sunlight supplies light energy. Explain this.'])
 def test_repetition_and_literal_answer_leakage_still_fail(api,text):
-    result=feedback('misconception'); result['follow_up_question']['text']=text
+    result=feedback('misconception'); result['assessments'][0]['follow_up_question']=text
     api[1]['outcomes']=[result,result]
     response=repair_post(api,evaluation_request('misconception'))
     assert response.status_code==502 and len(api[1]['calls'])==2
@@ -31,7 +31,7 @@ def test_repetition_and_literal_answer_leakage_still_fail(api,text):
 
 @pytest.mark.parametrize('ids',[['materials'],['energy','materials'],['unknown']])
 def test_model_cannot_choose_or_expand_followup_ids(api,ids):
-    result=feedback('misconception'); result['follow_up_question']['criterion_ids']=ids
+    result=feedback('misconception'); result['assessments'][0]['follow_up_question']={'text':'Question','criterion_ids':ids}
     api[1]['outcomes']=[result,result]
     assert repair_post(api,evaluation_request('misconception')).status_code==502
 
@@ -41,12 +41,40 @@ def test_multiple_misconceptions_keep_their_priority_in_question_order(api):
     result['assessments'][1].update(status='possible_misconception',student_quote=data['answer'])
     api[1]['outcomes']=[result]
     response=post(api,data); assert response.status_code==200,response.text
-    assert response.json()['attempt']['feedback']['follow_up_question']['criterion_ids']==['energy','materials']
+    assert response.json()['attempt']['feedback']['follow_up_question']['criterion_ids']==['energy']
 
 
 def test_internal_provider_schema_has_no_followup_id_choice():
     from app.services.learning import EvaluationOutput
     from app.ai.groq import strict_schema
     for schema in (EvaluationOutput.model_json_schema(),strict_schema(EvaluationOutput)):
-        assert set(schema['$defs']['FollowUpOutput']['properties'])=={'text'}
-        assert schema['$defs']['FollowUpOutput']['additionalProperties'] is False
+        assert 'follow_up_question' not in schema['properties']
+        assert 'criterion_ids' not in schema['$defs']['AssessmentOutput']['properties']
+        assert 'follow_up_question' in schema['$defs']['AssessmentOutput']['properties']
+
+
+def test_actual_source_quote_answer_leak_is_rejected(api):
+    data=evaluation_request('misconception')
+    result=feedback('misconception')
+    result['assessments'][0]['follow_up_question']="What does the phrase 'light energy from sunlight' describe in this process?"
+    api[1]['outcomes']=[result,result]
+    assert repair_post(api,data).status_code==502
+
+
+def test_missing_untested_model_assessment_is_constructed_not_graded(api):
+    data=evaluation_request('correct')
+    data['plan']['initial_question']['criterion_ids']=['energy']; data['question']['criterion_ids']=['energy']
+    result=feedback(); result['assessments']=result['assessments'][:1]
+    api[1]['outcomes']=[result]
+    response=post(api,data); assert response.status_code==200,response.text
+    untested=response.json()['attempt']['feedback']['assessments'][1]
+    assert untested['criterion_id']=='materials' and untested['status']=='not_tested' and untested['student_quote'] is None
+    assert untested['source_refs']==data['plan']['objective']['criteria'][1]['source_refs']
+
+
+@pytest.mark.parametrize('claim',['Glucose is food.','The food called glucose is produced.','The food, or glucose, is made.'])
+def test_observed_unsupported_category_claim_rejected(api,claim):
+    data=evaluation_request('misconception'); bad=feedback('misconception')
+    bad['targeted_explanation']['text']=claim
+    api[1]['outcomes']=[bad,bad]
+    assert repair_post(api,data).status_code==502

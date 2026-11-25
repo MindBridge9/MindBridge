@@ -8,14 +8,14 @@ from uuid import uuid4
 from pydantic import Field, PrivateAttr, SkipValidation, TypeAdapter, ValidationError, model_validator
 
 from app.ai.client import AIError
-from app.ai.prompts import OCR_SYSTEM, OCR_VERSION, SIMPLIFY_SYSTEM, SIMPLIFY_VERSION
+from app.ai.prompts import OCR_SYSTEM, OCR_VERSION, SIMPLIFY_SYSTEM, SIMPLIFY_VERSION, DEFINE_SYSTEM, DEFINE_VERSION, EXPLAIN_SYSTEM, EXPLAIN_VERSION
 from app.config import Settings
 from app.schemas.base import WireModel
 from app.schemas.content import (ExtractionWarning, GlossaryEntry, KeyTerm, PageDoc,
                                  PageSummary, ReadResult, SourceReference, TextChunk,
-                                 SimplifyRequest, SimplifiedChunk, SimplificationResult)
+                                 SimplifyRequest, SimplifiedChunk, SimplificationResult, DefineRequest, ExplainRequest, ConceptExplanation)
 from app.validation.facts import check_facts
-from app.validation.sources import select_source, validate_references, validate_source
+from app.validation.sources import select_source, validate_references, validate_source, require_chunk, phrase_present
 from app.validation.images import CleanImage
 
 Index = Annotated[int, Field(ge=1, le=100)]
@@ -349,3 +349,110 @@ async def simplify_text(adapter, request: SimplifyRequest) -> SimplificationResu
                                           'selected_chunk_ids': list(request.chunk_ids), 'source': selected.model_dump()},
                                     output_model=ValidatedSimplifyOutput)
     return SimplificationResult(page_id=source.page_id, level='easy', items=result._validated_items)
+
+
+# Independent B09 tools: existing source validators and provider attempt budget.
+
+
+class ToolOutput(WireModel):
+    @classmethod
+    def model_json_schema(cls, *args, **kwargs):
+        schema = super().model_json_schema(*args, **kwargs)
+        def minimal(node):
+            if isinstance(node, dict):
+                return {k:minimal(v) for k,v in node.items() if k not in (
+                    'title','default','minLength','maxLength','minItems','maxItems')}
+            if isinstance(node, list): return [minimal(v) for v in node]
+            return node
+        return minimal(schema)
+
+
+class DefineOutput(ToolOutput):
+    supported: bool
+    definition: str | None = Field(max_length=500)
+    contextual_meaning: str | None = Field(max_length=500)
+    example: str | None = Field(max_length=300)
+    source_refs: list[SourceReference] = Field(max_length=12)
+
+    @model_validator(mode='after')
+    def completeness(self):
+        if self.supported:
+            if not self.definition or not self.contextual_meaning or not self.source_refs:
+                raise ValueError('Definition needs meaning and evidence.')
+        elif any(v is not None for v in (self.definition,self.contextual_meaning,self.example)) or self.source_refs:
+            raise ValueError('Unsupported definitions must not invent content.')
+        return self
+
+
+class ExplainOutput(ToolOutput):
+    supported: bool
+    text: str | None = Field(max_length=1500)
+    important_terms: list[Annotated[str, Field(min_length=1,max_length=120)]] = Field(max_length=12)
+    source_refs: list[SourceReference] = Field(max_length=12)
+
+    @model_validator(mode='after')
+    def completeness(self):
+        if self.supported:
+            if not self.text or not self.source_refs:
+                raise ValueError('Explanation needs grounded text.')
+            if len({t.casefold() for t in self.important_terms}) != len(self.important_terms):
+                raise ValueError('Important terms must be unique.')
+        elif self.text is not None or self.important_terms or self.source_refs:
+            raise ValueError('Unsupported explanations must not invent content.')
+        return self
+
+
+def tool_context(request):
+    source = validate_source(request.source)
+    selected = require_chunk(source, request.chunk_id)
+    return selected, select_source(source,[c.id for c in source.chunks if c.quality=='clear'])
+
+
+async def define_term(adapter, request: DefineRequest) -> GlossaryEntry:
+    selected, context = tool_context(request)
+    if (not phrase_present(request.phrase,selected.text)
+            or request.surrounding_sentence not in selected.text
+            or not phrase_present(request.phrase,request.surrounding_sentence)):
+        raise AIError('VALIDATION_ERROR',422,'Select a phrase and its exact source sentence.')
+
+    class ValidatedDefineOutput(DefineOutput):
+        @model_validator(mode='after')
+        def evidence(self):
+            if self.supported:
+                refs=validate_references(context,self.source_refs)
+                if not any(r.chunk_id==selected.id and r.quote in request.surrounding_sentence
+                           and phrase_present(request.phrase,r.quote) for r in refs):
+                    raise ValueError('Definition must cite the selected phrase in its sentence.')
+            return self
+
+    result=await adapter.generate(operation='define',system_instruction=DEFINE_SYSTEM,
+        data={'prompt_version':DEFINE_VERSION,'phrase':request.phrase,'surrounding_sentence':request.surrounding_sentence,
+              'selected_chunk_id':selected.id,'source':context.model_dump()},output_model=ValidatedDefineOutput)
+    if not result.supported:
+        raise AIError('INSUFFICIENT_SOURCE',422,'This context does not support a reliable definition. Select another sentence.')
+    return GlossaryEntry(phrase=request.phrase,language='en',definition=result.definition,
+        contextual_meaning=result.contextual_meaning,example=result.example,source_refs=result.source_refs)
+
+
+async def explain_concept(adapter, request: ExplainRequest) -> ConceptExplanation:
+    selected, context = tool_context(request)
+
+    class ValidatedExplainOutput(ExplainOutput):
+        @model_validator(mode='after')
+        def evidence(self):
+            if self.supported:
+                refs=validate_references(context,self.source_refs)
+                if not any(r.chunk_id==selected.id for r in refs):
+                    raise ValueError('Explanation must cite selected source text.')
+                cited=' '.join(c.text for c in context.chunks if c.id in {r.chunk_id for r in refs})
+                if any(not phrase_present(t,cited) or not phrase_present(t,self.text) for t in self.important_terms):
+                    raise ValueError('Important terms must occur in cited source and generated text.')
+            return self
+
+    result=await adapter.generate(operation='explain',system_instruction=EXPLAIN_SYSTEM,
+        data={'prompt_version':EXPLAIN_VERSION,'concept':request.concept,'selected_chunk_id':selected.id,
+              'source':context.model_dump()},output_model=ValidatedExplainOutput)
+    if not result.supported:
+        raise AIError('INSUFFICIENT_SOURCE',422,'This context does not support that explanation. Select another passage or concept.')
+    return ConceptExplanation(page_id=context.page_id,concept=request.concept,language='en',text=result.text,
+                              important_terms=result.important_terms,source_refs=result.source_refs)

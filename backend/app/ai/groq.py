@@ -9,6 +9,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from .budgets import groq_budget
+from .attempts import active_budget
 from .client import AIError, _backoff, _invalid, _timeout, _unavailable, _retry_after, logger
 
 
@@ -58,7 +59,7 @@ def provider_failure(response):
                           retry_after_seconds=public_hint)
         return failure, not exhausted, hint or 0
     if status in (408, 504):
-        failure = _timeout()
+        failure = _timeout(fallback_eligible=True)
         failure.retry_after_seconds = public_hint
         return failure, True, hint or 0
     if status == 400 and code == 'json_validate_failed':
@@ -67,7 +68,7 @@ def provider_failure(response):
         return AIError('AI_INVALID_RESPONSE', 502, 'The AI request configuration was rejected.'), False, 0
     transient = status in (500, 502, 503)
     return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.',
-                   retryable=transient, retry_after_seconds=public_hint), transient, hint or 0
+                   retryable=transient, retry_after_seconds=public_hint, fallback_eligible=transient), transient, hint or 0
 
 
 def validate_response(body, output_model):
@@ -153,12 +154,13 @@ class GroqAdapter:
         total = s.read_deadline_seconds if operation == 'read' else s.text_deadline_seconds
         ceiling = s.read_call_timeout_seconds if operation == 'read' else s.text_call_timeout_seconds
         loop = asyncio.get_running_loop()
-        deadline = loop.time() + total
+        shared = active_budget.get()
+        deadline = min(loop.time() + total, shared.deadline) if shared else loop.time() + total
         call_id = str(uuid4())
         try:
             async with asyncio.timeout_at(deadline):
                 async with self._slots:
-                    for attempt in range(s.max_provider_attempts):
+                    for attempt in range(1 if shared else s.max_provider_attempts):
                         started = loop.time()
                         wait = 0
                         row = dict(provider='groq', call_id=call_id, operation=operation, attempt=attempt + 1,
@@ -166,6 +168,8 @@ class GroqAdapter:
                                    max_output_tokens=payload['max_completion_tokens'], estimated_input_tokens=estimated_input)
                         try:
                             timeout = min(ceiling, deadline - loop.time())
+                            if shared:
+                                shared.consume()
                             async with asyncio.timeout(timeout):
                                 response = await self._client.post('https://api.groq.com/openai/v1/chat/completions',
                                     headers={'Authorization': 'Bearer ' + s.groq_api_key.get_secret_value()},
@@ -173,6 +177,7 @@ class GroqAdapter:
                             row['upstream_http'] = response.status_code
                             if response.status_code != 200:
                                 failure, retry, wait = provider_failure(response)
+                                failure.provider_retry_after_seconds = wait
                                 row['category'] = 'upstream_' + failure.code.lower()
                                 row['retry_after_seconds'] = failure.retry_after_seconds
                             else:
@@ -208,16 +213,16 @@ class GroqAdapter:
                                 logger.info('ai_attempt %s', json.dumps(row))
                                 return result
                         except (TimeoutError, httpx.TimeoutException):
-                            failure, retry = _timeout(), True
+                            failure, retry = _timeout(fallback_eligible=True), True
                             row['category'] = 'timeout'
                         except httpx.TransportError:
-                            failure, retry = _unavailable(), True
+                            failure, retry = _unavailable(fallback_eligible=True), True
                             row['category'] = 'transport'
                         except AIError as exc:
                             failure, retry = exc, exc.code == 'AI_INVALID_RESPONSE' and row.get('category') != 'output_limit'
                             row['category'] = 'local_' + exc.code.lower()
                         wait = max(wait, _backoff(attempt))
-                        retry = retry and attempt + 1 < s.max_provider_attempts and deadline - loop.time() >= wait + ceiling
+                        retry = retry and shared is None and attempt + 1 < s.max_provider_attempts and deadline - loop.time() >= wait + ceiling
                         row.update(seconds=round(loop.time() - started, 3), retry_scheduled=retry,
                                    retry_delay=round(wait, 3) if retry else None)
                         logger.warning('ai_attempt %s', json.dumps(row))

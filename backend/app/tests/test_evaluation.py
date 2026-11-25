@@ -35,14 +35,12 @@ def feedback(case='correct'):
     if uncertain: states=['unclear','unclear']
     return dict(answer_interpretation=None if uncertain else ANSWERS[case], status='uncertain' if uncertain else 'evaluated',message='Let us review your explanation.',
       assessments=[dict(criterion_id=id,status=status,explanation='This idea is shown.' if status=='demonstrated' else 'This idea needs clarification or review.',
-        student_quote=ANSWERS[case] if status in ('demonstrated','possible_misconception') else None) for id,status in zip(('energy','materials'),states)],
+        student_quote=ANSWERS[case] if status in ('demonstrated','possible_misconception') else None,
+        follow_up_question=None if uncertain else ('How does a plant use sunlight when making glucose?' if id=='energy' else 'How do carbon dioxide and water contribute to making glucose?')) for id,status in zip(('energy','materials'),states)],
       uncertainty=dict(reason='ambiguous_answer',message='What do you mean by it?') if uncertain else None,
       targeted_explanation=None if uncertain else dict(text='Sunlight supplies energy to make glucose from carbon dioxide and water.',
         source_refs=[dict(chunk_id='c0001',quote='Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis.')]),
       hint=None if uncertain else 'Think about energy and materials separately.',
-      follow_up_question=None if uncertain else dict(
-        text='How does a plant use sunlight when making glucose?' if case=='misconception' else 'How do carbon dioxide and water contribute to making glucose?' if case=='partial' else 'How do the roles of sunlight and water differ in making glucose?',
-        ),
       recovery='clarify_answer' if uncertain else None,further_practice_useful=None if uncertain else any(s!='demonstrated' for s in states))
 
 
@@ -103,7 +101,7 @@ def test_tampered_requests(api,change):
 
 @pytest.mark.parametrize('change',['unknown','duplicate','missing','student_quote','no_evidence','repair_quote','repair_ref','no_repair','same_followup','duplicate_followup','unknown_followup','answer_leak','rubric'])
 def test_invalid_generated_output(api,change):
-    bad=feedback('misconception'); a=bad['assessments']; f=bad['follow_up_question']
+    bad=feedback('misconception'); a=bad['assessments']
     if change=='unknown': a[0]['criterion_id']='unknown'
     if change=='duplicate': a[1]['criterion_id']='energy'
     if change=='missing': bad['assessments']=a[:1]
@@ -112,10 +110,10 @@ def test_invalid_generated_output(api,change):
     if change=='repair_quote': bad['targeted_explanation']['source_refs'][0]['quote']='Invented quote'
     if change=='repair_ref': bad['targeted_explanation']['source_refs'][0]['chunk_id']='c0099'
     if change=='no_repair': bad['targeted_explanation']=None
-    if change=='same_followup': f['text']=evaluation_request()['question']['text'].upper()
-    if change=='duplicate_followup': f['criterion_ids']=['energy','energy']
-    if change=='unknown_followup': f['criterion_ids']=['unknown']
-    if change=='answer_leak': f['text']='Sunlight supplies light energy. Explain this.'
+    if change=='same_followup': a[0]['follow_up_question']=evaluation_request()['question']['text'].upper()
+    if change=='duplicate_followup': a[0]['follow_up_question']={'text':'Question','criterion_ids':['energy','energy']}
+    if change=='unknown_followup': a[0]['follow_up_question']={'text':'Question','criterion_ids':['unknown']}
+    if change=='answer_leak': a[0]['follow_up_question']='Sunlight supplies light energy. Explain this.'
     if change=='rubric': bad['plan']={}
     api[1]['outcomes']=[bad,feedback('misconception')]
     assert repair_post(api,evaluation_request('misconception')).status_code==200
@@ -127,7 +125,7 @@ def test_uncertainty_rules(api,change):
     bad=feedback('ambiguous')
     if change=='repair': bad['targeted_explanation']=feedback()['targeted_explanation']
     if change=='hint': bad['hint']='Revealing hint'
-    if change=='followup': bad['follow_up_question']=feedback()['follow_up_question']
+    if change=='followup': bad['assessments'][0]['follow_up_question']=feedback()['assessments'][0]['follow_up_question']
     if change=='practice': bad['further_practice_useful']=False
     if change=='uncertainty': bad['uncertainty']=None
     if change=='recovery': bad['recovery']=None
@@ -143,8 +141,7 @@ def test_untested_is_not_missing(api,valid):
     data=evaluation_request('partial'); data['question']['criterion_ids']=['energy']; data['plan']['initial_question']['criterion_ids']=['energy']
     result=feedback('partial')
     if valid:
-        result['assessments'][1]['status']='not_tested'
-        result['follow_up_question']=dict(text='How does a plant use sunlight when making glucose?')
+        result['assessments']=result['assessments'][:1]
     api[1]['outcomes']=[result,result]
     response=repair_post(api,data)
     assert response.status_code==(200 if valid else 502)
@@ -188,9 +185,7 @@ def test_invalid_retry_context_is_rejected(api):
 
 def test_untested_explanation_is_a_coverage_statement(api):
     data=evaluation_request('partial'); data['question']['criterion_ids']=['energy']; data['plan']['initial_question']['criterion_ids']=['energy']
-    result=feedback('partial'); result['assessments'][1]['status']='not_tested'
-    result['assessments'][1]['explanation']='Materials are absent from the answer.'
-    result['follow_up_question']=dict(text='How does a plant use sunlight when making glucose?')
+    result=feedback('partial'); result['assessments']=result['assessments'][:1]
     api[1]['outcomes']=[result]
     response=post(api,data)
     assert response.status_code==200

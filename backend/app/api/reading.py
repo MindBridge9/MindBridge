@@ -7,9 +7,9 @@ from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
 from app.ai.client import AIError
-from app.schemas.content import ReadResult, SimplifyRequest, SimplificationResult
+from app.schemas.content import ReadResult, SimplifyRequest, SimplificationResult, DefineRequest, ExplainRequest, GlossaryEntry, ConceptExplanation
 from app.schemas.errors import APIError
-from app.services.reading import read_image, simplify_text
+from app.services.reading import read_image, simplify_text, define_term, explain_concept
 from app.validation.images import sanitize_image
 
 class ReadingRoute(APIRoute):
@@ -17,7 +17,7 @@ class ReadingRoute(APIRoute):
         original_handler = super().get_route_handler()
 
         async def bounded(request: Request):
-            if self.path not in ('/api/simplify', '/api/prepare-understanding', '/api/check-understanding'):
+            if self.path not in ('/api/simplify', '/api/prepare-understanding', '/api/check-understanding', '/api/define', '/api/explain'):
                 return await original_handler(request)
             settings = request.app.state.settings
             content_type = request.headers.get('content-type', '').split(';', 1)[0].strip().lower()
@@ -77,3 +77,15 @@ async def read(request: Request, image: Annotated[UploadFile, File()]):
              description='Easy simplification for 1–3 clear source chunks, with exact evidence and deterministic possible-omission warnings. No automatic client retry.')
 async def simplify(request: Request, body: SimplifyRequest) -> SimplificationResult:
     return await simplify_text(request.app.state.gemini, body)
+
+
+@router.post('/api/define', operation_id='define', response_model=GlossaryEntry,
+             responses={status: {'model':APIError} for status in (400,413,415,422,429,501,502,503,504,500)})
+async def define(request: Request, body: DefineRequest) -> GlossaryEntry:
+    return await define_term(request.app.state.gemini,body)
+
+
+@router.post('/api/explain', operation_id='explain', response_model=ConceptExplanation,
+             responses={status: {'model':APIError} for status in (400,413,415,422,429,501,502,503,504,500)})
+async def explain(request: Request, body: ExplainRequest) -> ConceptExplanation:
+    return await explain_concept(request.app.state.gemini,body)

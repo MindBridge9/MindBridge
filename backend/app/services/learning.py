@@ -115,21 +115,17 @@ class AssessmentOutput(WireModel):
     status: Literal['demonstrated', 'missing', 'possible_misconception', 'unclear', 'not_tested']
     explanation: str = Field(min_length=1, max_length=500)
     student_quote: str | None = Field(max_length=2000)
-
-
-class FollowUpOutput(WireModel):
-    text: str = Field(min_length=1, max_length=500)
+    follow_up_question: str | None = Field(max_length=500)
 
 
 class EvaluationOutput(WireModel):
     answer_interpretation: str | None = Field(max_length=500)
     status: Literal['evaluated', 'uncertain']
     message: str = Field(min_length=1, max_length=800)
-    assessments: list[AssessmentOutput] = Field(min_length=2, max_length=4)
+    assessments: list[AssessmentOutput] = Field(min_length=1, max_length=4)
     uncertainty: EvaluationUncertainty | None
     targeted_explanation: GeneratedText | None
     hint: str | None = Field(max_length=300)
-    follow_up_question: FollowUpOutput | None
     recovery: Literal['clarify_answer', 'review_source', 'seek_help'] | None
     further_practice_useful: bool | None
 
@@ -231,11 +227,11 @@ async def check_understanding(adapter: AIProvider, request: ComprehensionRequest
         @model_validator(mode='after')
         def evidence_and_states(self):
             ids = [a.criterion_id for a in self.assessments]
-            if len(set(ids)) != len(ids) or set(ids) != set(criteria):
-                raise ValueError('Assess every fixed criterion exactly once.')
+            if len(set(ids)) != len(ids) or set(ids) != tested:
+                raise ValueError('Assess every tested criterion exactly once.')
             for assessment in self.assessments:
                 status = assessment.status
-                if (assessment.criterion_id not in tested) != (status == 'not_tested'):
+                if status == 'not_tested':
                     raise ValueError('Status must respect actual question coverage.')
                 quote = assessment.student_quote
                 if quote is not None and quote not in request.answer:
@@ -249,47 +245,62 @@ async def check_understanding(adapter: AIProvider, request: ComprehensionRequest
             if self.status == 'uncertain':
                 if (self.uncertainty is None or self.recovery is None
                         or any(v is not None for v in (self.targeted_explanation, self.hint,
-                            self.follow_up_question, self.further_practice_useful))
-                        or any(a.status != ('unclear' if a.criterion_id in tested else 'not_tested')
-                               for a in self.assessments)):
+                            self.further_practice_useful))
+                        or any(a.status != 'unclear' or a.follow_up_question is not None for a in self.assessments)):
                     raise ValueError('Uncertainty must offer recovery without assessment or repair claims.')
             else:
                 if (self.uncertainty is not None or self.recovery is not None
                         or self.further_practice_useful is None
-                        or (self.follow_up_question is None) != is_retry):
+                        or any((a.follow_up_question is None) != is_retry for a in self.assessments)):
                     raise ValueError('Feedback must match the initial/retry stage.')
                 if not is_retry:
-                    follow = self.follow_up_question
-                    targets = follow_up_targets(self.assessments, request.question.criterion_ids)
-                    if normalized(follow.text) == normalized(request.question.text):
+                    target = follow_up_targets(self.assessments, request.question.criterion_ids)[0]
+                    text = next(a.follow_up_question for a in self.assessments if a.criterion_id == target)
+                    if normalized(text) == normalized(request.question.text):
                         raise ValueError('Follow-up must be different and preserve targeted criterion coverage.')
-                    if any(normalized(c.description) in normalized(follow.text) for c in criteria.values()):
+                    if any(normalized(c.description) in normalized(text) for c in criteria.values()):
+                        raise ValueError('Follow-up must not copy the rubric answer.')
+                    # Do not turn a source quotation containing the relationship
+                    # into a question which already supplies its answer. Single
+                    # academic terms may still be named/quoted.
+                    quoted = re.findall(r'["“\']([^"”\']+)["”\']', text)
+                    if any(len(normalized(q).split()) >= 3 and q in ref.quote
+                           for q in quoted for ref in criteria[target].source_refs):
                         raise ValueError('Follow-up must not copy the rubric answer.')
                 if (any(a.status in ('missing', 'possible_misconception') for a in self.assessments)
                         and (self.targeted_explanation is None or self.hint is None)):
                     raise ValueError('Incomplete or mistaken answers need grounded repair and a hint.')
             if self.targeted_explanation:
                 validate_references(context, self.targeted_explanation.source_refs, page_id=plan.page_id)
+                # Conservative guard for the unsupported classification seen in
+                # live feedback, without rejecting quotations of the student's belief.
+                source_text=' '.join(c.text for c in context.chunks).casefold()
+                if 'food' not in source_text and re.search(
+                    r"\b(?:glucose\s+(?:is|as)\s+(?:the\s+|a\s+)?food|food\s+(?:called|or|is|named)\s+glucose|food,\s*(?:or\s+)?glucose)\b",
+                    self.targeted_explanation.text,re.I):
+                    raise ValueError('Repair adds a classification absent from the source.')
             return self
 
     result = await adapter.generate(operation='check', system_instruction=EVALUATE_SYSTEM,
         data={'prompt_version': EVALUATE_VERSION, 'stage': 'retry' if is_retry else 'initial', 'source': context.model_dump(),
-              'plan': plan.model_dump(), 'required_assessment_criterion_ids': list(criteria),
-              'question': request.question.model_dump(), 'answer': request.answer,
-              'follow_up_scope': [c.model_dump() for c in plan.objective.criteria if c.id in tested]},
+              'objective': plan.objective.description,
+              'criteria': [c.model_dump() for c in plan.objective.criteria if c.id in tested],
+              'required_assessment_criterion_ids': list(request.question.criterion_ids),
+              'question': request.question.model_dump(), 'answer': request.answer},
         output_model=ValidatedEvaluationOutput)
     by_id = {a.criterion_id: a for a in result.assessments}
     assessments = []
     for criterion in plan.objective.criteria:
-        assessment = by_id[criterion.id].model_dump()
-        if assessment['status'] == 'not_tested':
-            # A coverage statement is deterministic, not an inference about
-            # absent student knowledge or a generated educational assessment.
-            assessment['explanation'] = 'This criterion was not tested by this question.'
+        if criterion.id in tested:
+            assessment = by_id[criterion.id].model_dump(exclude={'follow_up_question'})
+        else:
+            assessment = dict(criterion_id=criterion.id, status='not_tested',
+                explanation='This criterion was not tested by this question.', student_quote=None)
         assessments.append(CriterionAssessment(**assessment, source_refs=criterion.source_refs))
-    follow_up = (ComprehensionQuestion(id='question-' + uuid4().hex, text=result.follow_up_question.text,
-                    criterion_ids=follow_up_targets(result.assessments, request.question.criterion_ids))
-                 if result.follow_up_question else None)
+    target = (follow_up_targets(result.assessments, request.question.criterion_ids)[0]
+              if not is_retry and result.status == 'evaluated' else None)
+    follow_up = (ComprehensionQuestion(id='question-' + uuid4().hex,
+                    text=by_id[target].follow_up_question, criterion_ids=[target]) if target else None)
     feedback = ComprehensionFeedback(status=result.status, message=result.message, assessments=assessments,
         uncertainty=result.uncertainty, targeted_explanation=result.targeted_explanation, hint=result.hint,
         follow_up_question=follow_up, recommendation=(result.recovery if result.status == 'uncertain' else
