@@ -7,6 +7,12 @@ No application AI routes are activated by this adapter.
 import asyncio
 import json
 import math
+import logging
+import random
+import hashlib
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from uuid import uuid4
 from contextlib import asynccontextmanager
 from typing import Literal, TypeVar
 
@@ -45,30 +51,63 @@ def _unavailable():
     return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.', retryable=True)
 
 
+# Inherits Uvicorn's configured handler; only explicitly constructed metadata.
+logger = logging.getLogger('uvicorn.error.mindbridge')
+
+
+def _retry_after(exc):
+    delays = []
+    body = exc.details.get('error', exc.details) if isinstance(exc.details, dict) else {}
+    for detail in body.get('details', []) or []:
+        if isinstance(detail, dict) and str(detail.get('@type', '')).endswith('RetryInfo'):
+            try:
+                value = float(str(detail.get('retryDelay', '')).removesuffix('s'))
+                if math.isfinite(value) and value >= 0:
+                    delays.append(math.ceil(value))
+            except ValueError:
+                pass
+    if exc.response is not None:
+        raw = exc.response.headers.get('Retry-After', '').strip()
+        try:
+            value = int(raw) if raw.isdigit() else math.ceil(
+                (parsedate_to_datetime(raw) - datetime.now(timezone.utc)).total_seconds())
+            delays.append(max(0, value))
+        except (ValueError, TypeError, OverflowError):
+            pass
+    return max(delays) if delays else None
+
+
+def _public_delay(exc):
+    delay = _retry_after(exc)
+    return delay if delay is not None and 1 <= delay <= 86400 else None
+
+
+def _category(exc):
+    return {400: 'configuration', 401: 'authentication', 403: 'permission',
+            404: 'model_not_found', 408: 'upstream_timeout', 422: 'configuration',
+            429: 'quota_or_rate', 500: 'upstream_internal', 502: 'upstream_gateway',
+            503: 'upstream_unavailable', 504: 'upstream_timeout'}.get(exc.code, 'upstream_other')
+
+
+def _backoff(attempt):
+    # Match the SDK's 1s initial exponential delay + up to 1s jitter,
+    # while retaining our stricter two-total-attempt budget.
+    return min(8.0, 2.0 ** attempt + random.uniform(0, 1))
+
+
 def _provider_error(exc):
     if exc.code == 429:
         # Do not infer quota reset times from prose. Daily/zero/unknown quota
         # failures never auto-retry; only explicit short-term rate limits do.
         details = exc.details.get('error', {}).get('details', []) if isinstance(exc.details, dict) else []
         quota_ids = []
-        delay = None
+        delay = _public_delay(exc)
         for detail in details:
             if not isinstance(detail, dict):
                 continue
             if detail.get('@type', '').endswith('QuotaFailure'):
                 quota_ids.extend(str(v.get('quotaId', '')) for v in detail.get('violations', []) if isinstance(v, dict))
-            if detail.get('@type', '').endswith('RetryInfo'):
-                try:
-                    seconds = float(str(detail.get('retryDelay', '')).removesuffix('s'))
-                    if math.isfinite(seconds) and 0 < seconds <= 86400:
-                        delay = math.ceil(seconds)
-                except ValueError:
-                    pass
-        if exc.response is not None:
-            raw_delay = exc.response.headers.get('Retry-After', '')
-            if raw_delay.isdigit() and 1 <= int(raw_delay) <= 86400:
-                delay = int(raw_delay)
-        exhausted = not quota_ids or any('day' in q.lower() for q in quota_ids)
+        exhausted = not quota_ids or any(not any(unit in q.lower() for unit in ('perminute', 'persecond')) for q in quota_ids)
         # An explicit zero limit is not replenished by a short wait.
         if 'limit: 0' in (exc.message or '').lower():
             exhausted = True
@@ -76,12 +115,14 @@ def _provider_error(exc):
         return AIError(code, 429, 'AI quota is unavailable. Try later.' if exhausted else 'The AI rate limit was reached. Try later.',
                        retryable=True, retry_after_seconds=delay)
     if exc.code in (400, 422) and exc.status == 'FAILED_PRECONDITION':
-        return _unavailable()
+        return AIError('AI_UNAVAILABLE', 503, 'The AI service configuration is unavailable.', retryable=False)
     if exc.code in (400, 422):
         return AIError('AI_INVALID_RESPONSE', 502, 'The AI request configuration was rejected.')
-    if exc.code == 408:
-        return _timeout()
-    return _unavailable()
+    if exc.code in (408, 504):
+        return AIError('AI_TIMEOUT', 504, 'The AI request timed out. Please retry.',
+                       retryable=True, retry_after_seconds=_public_delay(exc))
+    return AIError('AI_UNAVAILABLE', 503, 'The AI service or configured model is unavailable.',
+                   retryable=exc.code in (500, 502, 503, 504), retry_after_seconds=_public_delay(exc))
 
 
 class GeminiAdapter:
@@ -128,7 +169,11 @@ class GeminiAdapter:
             raise ValueError('Inline image requires nonempty bytes and an approved MIME type.')
         if self._closed or self._client is None:
             raise _unavailable() from None
-        parts = [types.Part.from_text(text=json.dumps(data, ensure_ascii=False, allow_nan=False))]
+        encoded = json.dumps(data, ensure_ascii=False, allow_nan=False)
+        schema = output_model.model_json_schema() if output_model else None
+        schema_bytes = json.dumps(schema, sort_keys=True).encode()
+        call_id = str(uuid4())
+        parts = [types.Part.from_text(text=encoded)]
         if image is not None:
             parts.append(types.Part.from_bytes(data=image, mime_type=mime_type))
         total = settings.read_deadline_seconds if operation == 'read' else settings.text_deadline_seconds
@@ -147,43 +192,72 @@ class GeminiAdapter:
                             system_instruction=system_instruction,
                             max_output_tokens=budgets[operation], candidate_count=1,
                             response_mime_type='application/json' if output_model else 'text/plain',
-                            response_json_schema=output_model.model_json_schema() if output_model else None,
+                            response_json_schema=schema,
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                             automatic_continuation=False,
-                            # Explicit low-latency OCR setting verified on these
+                            # Explicit low-latency reading settings on these
                             # models; omit it for arbitrary configured models.
                             thinking_config=(types.ThinkingConfig(thinking_level='MINIMAL')
-                                             if operation == 'read' and settings.gemini_model.removeprefix('models/')
+                                             if operation in ('read', 'simplify', 'prepare') and settings.gemini_model.removeprefix('models/')
                                              in ('gemini-3.5-flash-lite', 'gemini-3.1-flash-lite') else None),
                             http_options=types.HttpOptions(timeout=max(1, int(timeout * 1000)),
                                                           retry_options=types.HttpRetryOptions(attempts=1)),
                         )
                         wait = 0
+                        started = loop.time()
+                        row = dict(call_id=call_id, operation=operation, attempt=attempt + 1,
+                                   input_bytes=len(encoded.encode()), image_bytes=len(image or b''),
+                                   schema_bytes=len(schema_bytes), schema_hash=hashlib.sha256(schema_bytes).hexdigest()[:12],
+                                   max_output_tokens=budgets[operation])
                         try:
                             async with asyncio.timeout(timeout):
                                 response = await self._client.models.generate_content(
                                     model=settings.gemini_model,
                                     contents=[types.Content(role='user', parts=parts)], config=config)
-                            return self._validate(response, output_model)
+                            row["output_truncated"] = any(c.finish_reason == "MAX_TOKENS" for c in response.candidates or [])
+                            usage = response.usage_metadata
+                            row.update(output_tokens=usage.candidates_token_count if usage else None,
+                                       thinking_tokens=usage.thoughts_token_count if usage else None)
+                            result = self._validate(response, output_model)
+                            row.update(category='success', seconds=round(loop.time() - started, 3))
+                            logger.info('gemini_attempt %s', json.dumps(row))
+                            return result
                         except (TimeoutError, httpx.TimeoutException):
                             failure = _timeout()
+                            row["category"] = "timeout"
                             retry = True
                         except errors.APIError as exc:
                             failure = _provider_error(exc)
+                            msg = (exc.message or '').lower()
+                            row.update(category=_category(exc), upstream_http=exc.code,
+                                       upstream_status=exc.status if exc.status in {
+                                           'UNAVAILABLE', 'INTERNAL', 'RESOURCE_EXHAUSTED', 'INVALID_ARGUMENT',
+                                           'FAILED_PRECONDITION', 'UNAUTHENTICATED', 'PERMISSION_DENIED',
+                                           'NOT_FOUND', 'DEADLINE_EXCEEDED'} else 'OTHER',
+                                       overload_reported=any(x in msg for x in ('overload', 'high demand', 'capacity')),
+                                       schema_complexity_reported=any(x in msg for x in ('too many states', 'too complex', 'complexity', 'nesting depth')))
+                            wait = _retry_after(exc) or 0
                             retry = exc.code in (408, 500, 502, 503, 504)
                             if failure.code == 'RATE_LIMITED' and failure.retry_after_seconds:
                                 retry = True
                                 wait = failure.retry_after_seconds
                         except httpx.TransportError:
                             failure, retry = _unavailable(), True
+                            row["category"] = "transport"
                         except AIError as exc:
                             failure = exc
+                            row["category"] = "local_" + exc.code.lower()
                             retry = exc.code == 'AI_INVALID_RESPONSE'
-                        # A fresh safe exception is raised outside raw-exception handlers.
-                        if not retry or attempt + 1 >= settings.max_provider_attempts:
-                            raise failure from None
-                        wait = max(wait, 0.25)
-                        if deadline - loop.time() <= wait:
+                        wait = max(wait, _backoff(attempt))
+                        # Require room for a full call ceiling after backoff; do
+                        # not spend quota on a retry with only milliseconds left.
+                        retry = (retry and attempt + 1 < settings.max_provider_attempts
+                                 and deadline - loop.time() >= wait + ceiling)
+                        row.update(seconds=round(loop.time() - started, 3), public_code=failure.code,
+                                   retry_scheduled=retry, retry_delay=round(wait, 3) if retry else None,
+                                   retry_after_seconds=failure.retry_after_seconds)
+                        logger.warning('gemini_attempt %s', json.dumps(row))
+                        if not retry:
                             raise failure from None
                         await asyncio.sleep(wait)
         except TimeoutError:
@@ -215,7 +289,8 @@ class GeminiAdapter:
 @asynccontextmanager
 async def gemini_lifespan(app):
     """Future AI routes can pass this lifespan to FastAPI; health stays offline."""
-    async with GeminiAdapter(app.state.settings) as adapter:
+    from .providers import create_provider
+    async with create_provider(app.state.settings) as adapter:
         app.state.gemini = adapter
         try:
             yield

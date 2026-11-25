@@ -9,6 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from .api.health import router
 from .api.reading import router as reading_router
+from .api.learning import router as learning_router
 from .ai.client import AIError, gemini_lifespan
 from .config import Settings
 from .errors import error_response, http_error, validation_error
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                        expose_headers=['X-Request-ID', 'Retry-After'])
     app.include_router(router)
     app.include_router(reading_router)
+    app.include_router(learning_router)
     return app
 
 

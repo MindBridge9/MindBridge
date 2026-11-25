@@ -5,14 +5,17 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from pydantic import Field, SkipValidation, TypeAdapter, ValidationError, model_validator
+from pydantic import Field, PrivateAttr, SkipValidation, TypeAdapter, ValidationError, model_validator
 
 from app.ai.client import AIError
-from app.ai.prompts import OCR_SYSTEM, OCR_VERSION
+from app.ai.prompts import OCR_SYSTEM, OCR_VERSION, SIMPLIFY_SYSTEM, SIMPLIFY_VERSION
 from app.config import Settings
 from app.schemas.base import WireModel
 from app.schemas.content import (ExtractionWarning, GlossaryEntry, KeyTerm, PageDoc,
-                                 PageSummary, ReadResult, SourceReference, TextChunk)
+                                 PageSummary, ReadResult, SourceReference, TextChunk,
+                                 SimplifyRequest, SimplifiedChunk, SimplificationResult)
+from app.validation.facts import check_facts
+from app.validation.sources import select_source, validate_references, validate_source
 from app.validation.images import CleanImage
 
 Index = Annotated[int, Field(ge=1, le=100)]
@@ -262,8 +265,87 @@ def build_result(core: OCRResponse) -> ReadResult:
 async def read_image(adapter, image: CleanImage) -> ReadResult:
     # This trusted, code-derived shape guides optional generation without adding
     # its branching/nesting to the provider grammar. Never put image text here.
-    instruction = OCR_SYSTEM + '\nEnrichment object schema (validate independently): ' + json.dumps(ProviderEnrichment.model_json_schema())
+    instruction = OCR_SYSTEM
+    if not getattr(adapter, 'typed_ocr_schema', False):
+        instruction += '\nEnrichment object schema (validate independently): ' + json.dumps(ProviderEnrichment.model_json_schema())
     core = await adapter.generate(operation='read', system_instruction=instruction,
                                   data={'prompt_version': OCR_VERSION, 'task': 'Transcribe the printed image and enrich clear source text.'},
                                   output_model=OCRResponse, image=image.data, mime_type=image.mime_type)
     return build_result(core)
+
+
+class SimplifiedText(WireModel):
+    chunk_id: str = Field(pattern=r'^c[0-9]{4}$', min_length=1, max_length=5)
+    text: str = Field(min_length=1, max_length=4500)
+    source_quotes: list[Annotated[str, Field(min_length=1, max_length=3000)]] = Field(min_length=1, max_length=12)
+
+
+class SimplifyOutput(WireModel):
+    items: list[SimplifiedText] = Field(min_length=1, max_length=3)
+    _validated_items: list[SimplifiedChunk] = PrivateAttr(default_factory=list)
+
+    @classmethod
+    def model_json_schema(cls, *args, **kwargs):
+        # One shallow item object with string quotations; no nested reference,
+        # warning, metadata or nullable enrichment grammar. Enforce bounds locally.
+        schema = super().model_json_schema(*args, **kwargs)
+
+        def minimal(node):
+            if isinstance(node, dict):
+                return {key: minimal(value) for key, value in node.items()
+                        if key not in ('title', 'default', 'minItems', 'maxItems',
+                                       'minLength', 'maxLength', 'pattern')}
+            if isinstance(node, list):
+                return [minimal(value) for value in node]
+            return node
+
+        return minimal(schema)
+
+
+async def simplify_text(adapter, request: SimplifyRequest) -> SimplificationResult:
+    source = validate_source(request.source)
+    selected = select_source(source, request.chunk_ids)
+    if request.level != 'easy':
+        raise AIError('FEATURE_UNAVAILABLE', 501, 'Only easy simplification is available. Original text can be read directly.')
+    # Catch unsupported source numerals before spending provider quota.
+    for chunk in selected.chunks:
+        check_facts(selected, chunk.id, chunk.text)
+
+    class ValidatedSimplifyOutput(SimplifyOutput):
+        @model_validator(mode='after')
+        def evidence_and_facts(self):
+            ids = [item.chunk_id for item in self.items]
+            if len(ids) != len(set(ids)) or set(ids) != set(request.chunk_ids):
+                raise ValueError('Simplified items must match selected source chunks exactly.')
+            by_id = {item.chunk_id: item for item in self.items}
+            validated = []
+            for chunk_id in request.chunk_ids:
+                item = by_id[chunk_id]
+                # Reject exact repeated sentences inside the existing output
+                # validation/repair budget. This is not a semantic paraphrase check.
+                sentences = [' '.join(s.casefold().split()) for s in re.split(r'(?<=[.!?])\s+', item.text) if s.strip()]
+                original = next(c.text for c in selected.chunks if c.id == chunk_id)
+                for condition in ('only if', 'only when', 'unless'):
+                    if re.search(r'\b' + condition + r'\b', item.text, re.I) and not re.search(r'\b' + condition + r'\b', original, re.I):
+                        raise ValueError('Simplification introduces a stronger or different condition.')
+                if len(set(sentences)) != len(sentences):
+                    raise ValueError('Simplification repeats a sentence.')
+                # Restrict evidence to this item's original chunk; never accept
+                # valid-looking quotations from a different selected paragraph.
+                context = select_source(selected, [chunk_id])
+                refs = validate_references(context, [SourceReference(chunk_id=chunk_id, quote=quote)
+                                                    for quote in item.source_quotes], page_id=source.page_id)
+                facts = check_facts(context, chunk_id, item.text)
+                validated.append(SimplifiedChunk(chunk_id=chunk_id, text=item.text, source_refs=list(refs),
+                                                preserved_terms=list(facts.preserved_terms), warnings=list(facts.warnings),
+                                                terminology_check_status=facts.terminology_check_status))
+            self._validated_items = validated
+            return self
+
+    # All provider-output checks run INSIDE adapter validation, so schema,
+    # reference and FactGuard failures share its <=2 total attempts and deadline.
+    result = await adapter.generate(operation='simplify', system_instruction=SIMPLIFY_SYSTEM,
+                                    data={'prompt_version': SIMPLIFY_VERSION, 'level': 'easy',
+                                          'selected_chunk_ids': list(request.chunk_ids), 'source': selected.model_dump()},
+                                    output_model=ValidatedSimplifyOutput)
+    return SimplificationResult(page_id=source.page_id, level='easy', items=result._validated_items)

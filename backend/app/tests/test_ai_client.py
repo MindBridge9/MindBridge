@@ -101,7 +101,7 @@ def test_rate_limit_respects_delay():
     client = fake(provider(429, quota='RequestsPerMinute', delay='1s'), response())
     with patch('app.ai.client.asyncio.sleep', new_callable=AsyncMock) as sleep:
         assert run(client).answer == 'ok'
-        sleep.assert_awaited_once_with(1)
+        assert 1 <= sleep.await_args.args[0] <= 2
 
 
 def test_delay_beyond_budget_does_not_retry():
@@ -224,8 +224,9 @@ def test_total_deadline_includes_retry_delay_and_second_call():
                 await adapter.generate(operation='check', system_instruction='safe', data={})
         assert caught.value.code == 'AI_TIMEOUT'
         assert count == 2
-        assert 0.30 <= loop.time() - started < 0.7
-    asyncio.run(execute())
+        assert 0.24 <= loop.time() - started < 0.7
+    with patch('app.ai.client._backoff', return_value=0.1):
+        asyncio.run(execute())
 
 
 def test_concurrency_queue_uses_same_deadline():
@@ -259,3 +260,98 @@ def test_transport_error_does_not_expose_credentials(caplog):
     assert 'synthetic-secret' not in str(caught.value)
     assert caught.value.__cause__ is None
     assert 'synthetic-secret' not in caplog.text
+
+
+@pytest.mark.parametrize('code', [401, 403, 404])
+def test_permanent_provider_error_not_user_retryable(code):
+    client = fake(provider(code))
+    with pytest.raises(AIError) as caught:
+        run(client)
+    assert caught.value.retryable is False
+    assert client.models.generate_content.await_count == 1
+
+
+@pytest.mark.parametrize('header', ['60', '999999'])
+def test_unavailable_respects_long_retry_after_without_retry(header):
+    exc = provider(503)
+    exc.response = httpx.Response(503, headers={'Retry-After': header})
+    client = fake(exc)
+    with pytest.raises(AIError) as caught:
+        run(client)
+    assert caught.value.retry_after_seconds == (int(header) if int(header) <= 86400 else None)
+    assert client.models.generate_content.await_count == 1
+
+
+def test_retry_after_date_and_retry_info():
+    from datetime import datetime, timezone, timedelta
+    from email.utils import format_datetime
+    from app.ai.client import _retry_after
+    exc = provider(503, delay='2.5s')
+    exc.response = httpx.Response(503, headers={'Retry-After': format_datetime(datetime.now(timezone.utc) + timedelta(seconds=60))})
+    assert 59 <= _retry_after(exc) <= 60
+    exc.response = httpx.Response(503, headers={'Retry-After': 'invalid'})
+    assert _retry_after(exc) == 3
+
+
+def test_safe_attempt_diagnostics_distinguish_validation_and_upstream(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger='uvicorn.error.mindbridge')
+    client = fake(provider(503, message='sensitive-provider-data high demand'), response())
+    with patch('app.ai.client.asyncio.sleep', new_callable=AsyncMock):
+        run(client)
+    assert 'upstream_unavailable' in caplog.text
+    assert '"upstream_http": 503' in caplog.text
+    assert '"category": "success"' in caplog.text
+    assert 'sensitive-provider-data' not in caplog.text
+    assert 'untrusted data' not in caplog.text
+    assert 'Trusted instruction' not in caplog.text
+
+
+def test_retry_requires_full_call_budget():
+    class TightSettings(Settings):
+        text_deadline_seconds = 1.5
+        text_call_timeout_seconds = 1
+    client = fake(provider(503), response())
+    with patch('app.ai.client._backoff', return_value=1):
+        with pytest.raises(AIError):
+            run(client, TightSettings())
+    assert client.models.generate_content.await_count == 1
+
+
+def test_backoff_bounds():
+    from app.ai.client import _backoff
+    with patch('app.ai.client.random.uniform', return_value=0.5):
+        assert _backoff(0) == 1.5
+        assert _backoff(1) == 2.5
+        assert _backoff(10) == 8
+
+
+@pytest.mark.parametrize('header', ['0', '-1', 'garbage'])
+def test_invalid_or_zero_delay_preserves_public_contract(header):
+    from app.ai.client import _provider_error
+    exc = provider(503)
+    exc.response = httpx.Response(503, headers={'Retry-After': header})
+    assert _provider_error(exc).retry_after_seconds is None
+
+
+def test_503_retry_waits_for_hint():
+    exc = provider(503, delay='3s')
+    client = fake(exc, response())
+    with patch('app.ai.client.asyncio.sleep', new_callable=AsyncMock) as sleep:
+        assert run(client).answer == 'ok'
+    sleep.assert_awaited_once_with(3)
+
+
+def test_unknown_quota_is_not_short_term():
+    client = fake(provider(429, quota='OtherQuota', delay='1s'))
+    with pytest.raises(AIError) as caught:
+        run(client)
+    assert caught.value.code == 'AI_QUOTA_EXHAUSTED'
+    assert client.models.generate_content.await_count == 1
+
+
+@pytest.mark.parametrize('code', [408, 504])
+def test_upstream_deadline_maps_to_timeout(code):
+    from app.ai.client import _provider_error
+    failure = _provider_error(provider(code))
+    assert (failure.code, failure.status) == ('AI_TIMEOUT', 504)

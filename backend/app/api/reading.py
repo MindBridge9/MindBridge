@@ -3,15 +3,51 @@ import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, File, Request, UploadFile
+from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
 from app.ai.client import AIError
-from app.schemas.content import ReadResult
+from app.schemas.content import ReadResult, SimplifyRequest, SimplificationResult
 from app.schemas.errors import APIError
-from app.services.reading import read_image
+from app.services.reading import read_image, simplify_text
 from app.validation.images import sanitize_image
 
-router = APIRouter()
+class ReadingRoute(APIRoute):
+    def get_route_handler(self):
+        original_handler = super().get_route_handler()
+
+        async def bounded(request: Request):
+            if self.path not in ('/api/simplify', '/api/prepare-understanding', '/api/check-understanding'):
+                return await original_handler(request)
+            settings = request.app.state.settings
+            content_type = request.headers.get('content-type', '').split(';', 1)[0].strip().lower()
+            if content_type != 'application/json' and not (content_type.startswith('application/') and content_type.endswith('+json')):
+                raise AIError('INVALID_REQUEST', 415, 'Use application/json for this request.')
+            declared = request.headers.get('content-length')
+            if declared is not None:
+                if not declared.isascii() or not declared.isdigit():
+                    raise AIError('INVALID_REQUEST', 400, 'Invalid request length.')
+                if len(declared) > 12 or int(declared) > settings.max_json_body_bytes:
+                    raise AIError('REQUEST_TOO_LARGE', 413, 'JSON requests must be at most 256 KiB.')
+            try:
+                async with asyncio.timeout(settings.text_deadline_seconds):
+                    parts, size = [], 0
+                    async for part in request.stream():
+                        size += len(part)
+                        if size > settings.max_json_body_bytes:
+                            raise AIError('REQUEST_TOO_LARGE', 413, 'JSON requests must be at most 256 KiB.')
+                        parts.append(part)
+                    # Populate Starlette's standard body cache only AFTER the
+                    # byte cap is satisfied, before FastAPI JSON/model parsing.
+                    request._body = b''.join(parts)
+                    return await original_handler(request)
+            except TimeoutError:
+                raise AIError('AI_TIMEOUT', 504, 'The AI request timed out. Please retry.', retryable=True) from None
+
+        return bounded
+
+
+router = APIRouter(route_class=ReadingRoute)
 
 
 @router.post('/api/read', operation_id='read', response_model=ReadResult,
@@ -34,3 +70,10 @@ async def read(request: Request, image: Annotated[UploadFile, File()]):
         raise AIError('AI_TIMEOUT', 504, 'The image request timed out. Please retry.', retryable=True) from None
     finally:
         await image.close()
+
+
+@router.post('/api/simplify', operation_id='simplify', response_model=SimplificationResult,
+             responses={status: {'model': APIError} for status in (400, 413, 415, 422, 429, 501, 502, 503, 504, 500)},
+             description='Easy simplification for 1–3 clear source chunks, with exact evidence and deterministic possible-omission warnings. No automatic client retry.')
+async def simplify(request: Request, body: SimplifyRequest) -> SimplificationResult:
+    return await simplify_text(request.app.state.gemini, body)

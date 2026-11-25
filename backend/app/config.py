@@ -9,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True, hide_input_in_errors=True)
+    ai_provider: Literal['gemini', 'groq'] = 'gemini'
+    groq_api_key: SecretStr | None = Field(default=None, repr=False)
+    groq_model: str = Field(default='qwen/qwen3.8-27b', min_length=1)
     gemini_api_key: SecretStr | None = Field(default=None, repr=False)
     gemini_model: str = Field(default='gemini-3.5-flash-lite', min_length=1)
     environment: Literal['development', 'production'] = 'production'
@@ -32,7 +35,7 @@ class Settings(BaseModel):
     max_provider_attempts: ClassVar[int] = 2
     max_concurrent_ai_calls: ClassVar[int] = 2
 
-    @field_validator('gemini_model')
+    @field_validator('gemini_model', 'groq_model')
     @classmethod
     def model_not_blank(cls, value):
         if not value.strip():
@@ -60,7 +63,7 @@ class Settings(BaseModel):
             for line in path.read_text().splitlines():
                 name, separator, raw = line.removeprefix('export ').partition('=')
                 name = name.strip()
-                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'CORS_ORIGINS', 'MINDBRIDGE_ENV'):
+                if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'GROQ_API_KEY', 'GROQ_MODEL', 'AI_PROVIDER', 'CORS_ORIGINS', 'MINDBRIDGE_ENV'):
                     try:
                         parts = shlex.split(raw, comments=True)
                     except ValueError:
@@ -70,6 +73,9 @@ class Settings(BaseModel):
                     values[name] = parts[0] if parts else ''
         values.update(os.environ)
         return cls(
+            ai_provider=values.get('AI_PROVIDER', 'gemini'),
+            groq_api_key=values.get('GROQ_API_KEY') or None,
+            groq_model=values.get('GROQ_MODEL', 'qwen/qwen3.8-27b'),
             gemini_api_key=values.get('GEMINI_API_KEY') or None,
             gemini_model=values.get('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
             environment=values.get('MINDBRIDGE_ENV', 'production'),

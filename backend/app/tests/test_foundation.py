@@ -26,7 +26,7 @@ def test_health_and_routes(client):
         'limits': {'max_image_bytes': 8388608, 'max_source_chars': 12000, 'max_answer_chars': 2000},
     }
     assert response.headers['x-request-id']
-    assert set(client.get('/openapi.json').json()['paths']) == {'/api/health', '/api/read'}
+    assert set(client.get('/openapi.json').json()['paths']) == {'/api/health', '/api/read', '/api/simplify', '/api/prepare-understanding', '/api/check-understanding'}
     assert client.post('/api/read').status_code == 415
 
 
