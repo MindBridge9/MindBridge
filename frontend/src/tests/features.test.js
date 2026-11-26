@@ -10,6 +10,7 @@ import {
   DEFAULT_RELEASE_FLAGS,
   checkFeatureAvailability,
   checkLearningAvailability,
+  parseReleaseFlags,
 } from '../config/features';
 import defaultFixture from '../../../docs/fixtures/preferences.defaults.json';
 import healthInitial from '../../../docs/fixtures/health.initial.json';
@@ -62,8 +63,16 @@ describe('Preferences storage & defaults', () => {
 });
 
 describe('Feature availability gating', () => {
-  it('starts all release flags false by default', () => {
+  it('starts all release flags false by default and supports per-capability opt-in', () => {
     expect(Object.values(DEFAULT_RELEASE_FLAGS).every((v) => v === false)).toBe(true);
+
+    const partial = parseReleaseFlags({ VITE_ENABLED_CAPABILITIES: 'read, simplify, define' });
+    expect(partial.read).toBe(true);
+    expect(partial.simplify).toBe(true);
+    expect(partial.define).toBe(true);
+    expect(partial.explain).toBe(false);
+    expect(partial.prepare_understanding).toBe(false);
+    expect(partial.check_understanding).toBe(false);
   });
 
   it('distinguishes unknown health from backend unsupported and requires both learning endpoints', () => {
@@ -102,8 +111,23 @@ describe('Feature availability gating', () => {
 
     const partialLearningHealth = {
       ...healthInitial,
-      capabilities: { ...healthInitial.capabilities, prepare_understanding: true, check_understanding: false },
+      capabilities: {
+        ...healthInitial.capabilities,
+        read: true,
+        simplify: true,
+        define: true,
+        explain: true,
+        prepare_understanding: true,
+        check_understanding: false,
+      },
     };
+    expect(
+      checkFeatureAvailability('read', {
+        releaseFlags: allFlagsOn,
+        health: partialLearningHealth,
+        healthStatus: 'success',
+      })
+    ).toEqual({ available: true, reason: 'available' });
     expect(
       checkLearningAvailability({
         releaseFlags: allFlagsOn,

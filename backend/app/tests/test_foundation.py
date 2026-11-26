@@ -102,7 +102,19 @@ def test_config(monkeypatch):
     assert 'secret-content' not in settings.model_dump_json()
     assert settings.gemini_model == 'configured-model'
     with TestClient(create_app(settings)) as client:
-        assert not any(client.get('/api/health').json()['capabilities'].values())
+        response = client.get('/api/health')
+        assert response.status_code == 200
+        assert 'secret-content' not in response.text
+        payload = response.json()
+        assert payload['capabilities'] == {
+            'read': True,
+            'simplify': True,
+            'define': True,
+            'explain': True,
+            'prepare_understanding': True,
+            'check_understanding': False,
+        }
+        assert payload['reading_levels'] == ['original', 'easy']
     with pytest.raises(ValidationError):
         Settings(cors_origins=('*',))
 

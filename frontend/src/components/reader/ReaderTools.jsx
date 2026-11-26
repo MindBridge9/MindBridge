@@ -30,12 +30,15 @@ export function ReaderTools({
   const isClearSelectable = Boolean(
     selectedChunk && selectedChunk.quality === 'clear' && selectedChunk.kind !== 'heading'
   );
+  const isClearParagraph = Boolean(
+    selectedChunk && selectedChunk.quality === 'clear' && selectedChunk.kind === 'paragraph'
+  );
   const isSample = sourceOrigin === 'sample';
 
   const canSimplify = !isSample && Boolean(capabilities.simplify?.available) && isClearSelectable;
   const canDefine = !isSample && Boolean(capabilities.define?.available) && isClearSelectable;
   const canExplain = !isSample && Boolean(capabilities.explain?.available) && isClearSelectable;
-  const canLearn = !isSample && Boolean(capabilities.learning?.available) && isClearSelectable;
+  const canLearn = !isSample && Boolean(capabilities.learning?.available) && isClearParagraph;
 
   const handleExplainSubmit = (event) => {
     event.preventDefault();
@@ -104,8 +107,27 @@ export function ReaderTools({
         )}
 
         {simplifyError ? (
-          <Notice tone="error" title="Could not simplify section">
+          <Notice
+            tone="error"
+            title="Could not simplify section"
+            actions={
+              simplifyError.retryable && canSimplify ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onSimplifySelected?.(selectedChunk.id)}
+                >
+                  Try again
+                </Button>
+              ) : null
+            }
+          >
             <p className="m-0">{simplifyError.message}</p>
+            {simplifyError.retryAfterSeconds ? (
+              <p className="m-0 mt-1 text-[13px] font-semibold">
+                Wait {simplifyError.retryAfterSeconds} seconds before trying again.
+              </p>
+            ) : null}
           </Notice>
         ) : null}
 
@@ -140,6 +162,11 @@ export function ReaderTools({
         ) : !capabilities.learning?.available ? (
           <p className="mb-theme-muted text-[12px] text-[#3F584D] m-0">
             {describeAvailabilityReason(capabilities.learning?.reason, 'Comprehension practice')}
+          </p>
+        ) : selectedChunk && !isClearParagraph ? (
+          <p className="mb-theme-muted text-[12px] text-[#3F584D] m-0">
+            Select a clear textbook paragraph (not a heading, list item, or caption) to start
+            practice.
           </p>
         ) : null}
       </section>

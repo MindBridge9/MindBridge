@@ -42,6 +42,11 @@ export function ExplanationPanel({
             }
           >
             <p className="m-0">{error.message}</p>
+            {error.retryAfterSeconds ? (
+              <p className="m-0 mt-1 text-[13px] font-semibold">
+                Wait {error.retryAfterSeconds} seconds before trying again.
+              </p>
+            ) : null}
           </Notice>
         ) : null}
 

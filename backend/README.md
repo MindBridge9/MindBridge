@@ -916,3 +916,56 @@ Files changed for this hardening task: `.env.example`, `.python-version`,
 `app/tests/test_hardening.py`, `app/tests/test_private_contract.py`.
 Earlier uncommitted learning/reading changes were preserved. No Git staging/history
 changes, provider-model changes, frontend changes or deployment were performed.
+
+## Local setup and configuration-aware health readiness
+
+`/api/health` now evaluates `Settings` without making external provider calls:
+
+- When `AI_ENABLED=false` or credentials for the selected `AI_PROVIDER` (`groq` or `gemini`) are missing, all six capabilities report `false` and `reading_levels` is `["original"]`.
+- When `AI_ENABLED=true` and the selected provider has valid credentials, `read`, `simplify`, `define`, `explain`, and `prepare_understanding` report `true`, and `reading_levels` is `["original", "easy"]` (`guided` remains unimplemented / `501`).
+- `check_understanding` remains `false` until its live semantic-quality acceptance gate is resolved.
+
+### 1. Create `backend/.env` safely (without overwriting an existing file)
+
+PowerShell (from repository root):
+
+```powershell
+if (-not (Test-Path backend\.env)) { Copy-Item backend\.env.example backend\.env }
+```
+
+Bash (from repository root):
+
+```bash
+cp -n backend/.env.example backend/.env
+```
+
+Edit `backend/.env` locally (never commit it) and set:
+- `MINDBRIDGE_ENV=development`
+- `AI_ENABLED=true`
+- `AI_PROVIDER=groq` with `GROQ_API_KEY=...` (or `AI_PROVIDER=gemini` with `GEMINI_API_KEY=...`)
+- `CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`
+
+### 2. Start the FastAPI backend
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+### 3. Configure and start the frontend
+
+```powershell
+cd frontend
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Set VITE_ENABLED_CAPABILITIES=read,simplify,define,explain,prepare_understanding in frontend/.env
+npm run dev
+```
+
+### 4. Verify `/api/health` and test one real read + simplify flow
+
+```powershell
+curl.exe http://127.0.0.1:8000/api/health
+```
+
+Confirm `capabilities.read` and `capabilities.simplify` are `true` (and `check_understanding` is `false`), then open `http://localhost:5173/scan`, upload one clear English textbook photograph, open the extracted page in the Reader, and trigger **Simplify selected section** on a clear paragraph.

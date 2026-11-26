@@ -51,7 +51,7 @@ export function LearningPage({ onSaveSession = null }) {
       page.id === pageId &&
       selectedChunk &&
       selectedChunk.quality === 'clear' &&
-      selectedChunk.kind !== 'heading'
+      selectedChunk.kind === 'paragraph'
   );
 
   const learningAvailability = getFeatureState('learning', {

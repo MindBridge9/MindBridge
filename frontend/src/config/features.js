@@ -1,22 +1,56 @@
 export const EXPECTED_API_VERSION = '1.0';
 
-// Release flags start false per INTEGRATION_TASKS (I03) and FRONTEND_SPEC.
-// Integration environments may opt in via VITE_ENABLE_INTEGRATED_FEATURES=true,
-// and live AI still requires the backend /api/health capability flag to be true.
-const ENV_ENABLED =
-  typeof import.meta !== 'undefined' &&
-  import.meta.env?.VITE_ENABLE_INTEGRATED_FEATURES === 'true';
+export const AI_CAPABILITY_KEYS = Object.freeze([
+  'read',
+  'simplify',
+  'define',
+  'explain',
+  'prepare_understanding',
+  'check_understanding',
+]);
 
-export const DEFAULT_RELEASE_FLAGS = Object.freeze({
-  read: ENV_ENABLED,
-  simplify: ENV_ENABLED,
-  define: ENV_ENABLED,
-  explain: ENV_ENABLED,
-  prepare_understanding: ENV_ENABLED,
-  check_understanding: ENV_ENABLED,
-  guided_level: false,
-  saved_pages: false,
-});
+export function parseReleaseFlags(env = typeof import.meta !== 'undefined' ? import.meta.env : {}) {
+  const perCapabilityRaw = env?.VITE_ENABLED_CAPABILITIES;
+  const legacyAllEnabled = env?.VITE_ENABLE_INTEGRATED_FEATURES === 'true';
+
+  const flags = {
+    read: false,
+    simplify: false,
+    define: false,
+    explain: false,
+    prepare_understanding: false,
+    check_understanding: false,
+    guided_level: false,
+    saved_pages: false,
+  };
+
+  if (typeof perCapabilityRaw === 'string' && perCapabilityRaw.trim().length > 0) {
+    const requested = new Set(
+      perCapabilityRaw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    );
+    for (const key of AI_CAPABILITY_KEYS) {
+      flags[key] = requested.has(key);
+    }
+    return Object.freeze(flags);
+  }
+
+  if (legacyAllEnabled) {
+    for (const key of AI_CAPABILITY_KEYS) {
+      flags[key] = true;
+    }
+  }
+
+  return Object.freeze(flags);
+}
+
+// Release flags start false per INTEGRATION_TASKS (I03) and FRONTEND_SPEC.
+// Integration environments may opt in per capability via VITE_ENABLED_CAPABILITIES
+// (e.g. "read,simplify,define,explain") or VITE_ENABLE_INTEGRATED_FEATURES=true,
+// and live AI still requires the backend /api/health capability flag to be true.
+export const DEFAULT_RELEASE_FLAGS = parseReleaseFlags();
 
 export function getBrowserCapabilities() {
   const speechSupported =
@@ -28,8 +62,7 @@ export function getBrowserCapabilities() {
     typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
 
   const fileInputSupported =
-    typeof document !== 'undefined' &&
-    typeof FileReader !== 'undefined';
+    typeof document !== 'undefined' && typeof FileReader !== 'undefined';
 
   return {
     speech: speechSupported,
@@ -50,9 +83,23 @@ export function hasClearSourceChunk(page) {
   );
 }
 
+export function hasClearParagraphChunk(page) {
+  return Boolean(
+    page &&
+      Array.isArray(page.chunks) &&
+      page.chunks.some((chunk) => chunk.quality === 'clear' && chunk.kind === 'paragraph')
+  );
+}
+
 export function checkFeatureAvailability(
   feature,
-  { releaseFlags = DEFAULT_RELEASE_FLAGS, health = null, healthStatus = 'idle', page = null, requireClearSource = false } = {}
+  {
+    releaseFlags = DEFAULT_RELEASE_FLAGS,
+    health = null,
+    healthStatus = 'idle',
+    page = null,
+    requireClearSource = false,
+  } = {}
 ) {
   if (!releaseFlags?.[feature]) {
     return { available: false, reason: 'release_disabled' };
@@ -69,13 +116,7 @@ export function checkFeatureAvailability(
     return { available: false, reason: 'version_mismatch' };
   }
 
-  if (feature === 'learning') {
-    const canPrepare = Boolean(health.capabilities?.prepare_understanding && releaseFlags.prepare_understanding);
-    const canCheck = Boolean(health.capabilities?.check_understanding && releaseFlags.check_understanding);
-    if (!canPrepare || !canCheck) {
-      return { available: false, reason: 'backend_unsupported' };
-    }
-  } else if (!health.capabilities?.[feature]) {
+  if (!health.capabilities?.[feature]) {
     return { available: false, reason: 'backend_unsupported' };
   }
 
@@ -108,7 +149,7 @@ export function checkLearningAvailability({
   if (!health.capabilities?.prepare_understanding || !health.capabilities?.check_understanding) {
     return { available: false, reason: 'backend_unsupported' };
   }
-  if (requireClearSource && !hasClearSourceChunk(page)) {
+  if (requireClearSource && !hasClearParagraphChunk(page)) {
     return { available: false, reason: 'insufficient_source' };
   }
   return { available: true, reason: 'available' };

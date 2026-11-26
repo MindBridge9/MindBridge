@@ -1,11 +1,42 @@
 import { useCallback, useRef, useState } from 'react';
 import { defineTerm, explainConcept, simplify } from '../lib/api';
 import { buildSourceContext } from '../lib/sourceContext';
+import { splitTextIntoSentences } from '../components/speech/segmentDisplayedChunks';
 import { useApiRequest } from './useApiRequest';
 import { usePage } from '../context/PageContext';
 
 function normalizeKey(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function findExactSurroundingSentence(chunkText, phrase, explicitSentence = '') {
+  if (!chunkText) return phrase;
+  if (
+    explicitSentence &&
+    explicitSentence.length <= 1000 &&
+    chunkText.includes(explicitSentence) &&
+    explicitSentence.toLowerCase().includes(phrase.toLowerCase())
+  ) {
+    return explicitSentence;
+  }
+  if (chunkText.length <= 1000) {
+    return chunkText;
+  }
+  const sentences = splitTextIntoSentences(chunkText);
+  const matching = sentences.find(
+    (s) => s.trim().length <= 1000 && s.toLowerCase().includes(phrase.toLowerCase())
+  );
+  if (matching) {
+    return matching.trim();
+  }
+  // Exact bounded window containing phrase as a contiguous substring of chunkText
+  const idx = chunkText.toLowerCase().indexOf(phrase.toLowerCase());
+  if (idx >= 0) {
+    const start = Math.max(0, idx - 300);
+    const end = Math.min(chunkText.length, idx + phrase.length + 300);
+    return chunkText.slice(start, end);
+  }
+  return chunkText.slice(0, 1000);
 }
 
 export function useReadingTools(page) {
@@ -163,7 +194,7 @@ export function useReadingTools(page) {
 
       try {
         const chunk = page.chunks.find((c) => c.id === chunkId);
-        const surrounding = cleanSentence || chunk?.text || cleanPhrase;
+        const surrounding = findExactSurroundingSentence(chunk?.text || '', cleanPhrase, cleanSentence);
         const source = buildSourceContext(page, [chunkId], {
           requireClear: true,
           includeAdjacent: true,
