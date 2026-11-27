@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "font_family": "lexend",
+  "font_size_px": 20,
+  "line_height": 1.8,
+  "letter_spacing_em": 0,
+  "word_spacing_em": 0,
+  "reading_width_ch": 65,
+  "theme": "cream",
+  "speech_rate": 1,
+  "voice_uri": null,
+  "highlight_sentence": true,
+  "auto_scroll": false,
+  "reduce_motion": false
+}

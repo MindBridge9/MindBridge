@@ -23,7 +23,7 @@ export function RetakeGuidance({ reasons = [], onRetake = null }) {
           <button
             type="button"
             onClick={onRetake}
-            className="min-h-[44px] px-3.5 py-2 rounded-[6px] border border-[#9A601C] bg-white text-[#20372D] font-semibold text-[14px] hover:bg-[#FDF3E1] cursor-pointer"
+            className="min-h-[44px] px-3.5 py-2 rounded-[6px] border border-[var(--mb-warning)] bg-[var(--mb-surface)] text-[var(--mb-text)] font-semibold text-[14px] hover:bg-[var(--mb-warning-bg)] cursor-pointer"
           >
             Choose a clearer photo
           </button>

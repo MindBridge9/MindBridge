@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./reading.css";
+@import "./experience.css";
+@import "./creative.css";
+@import "./art-direction.css";
 
 @layer base {
   html {
@@ -86,7 +89,7 @@
 .mb-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
-  background: #C9D2C8;
+  background: var(--mb-border-subtle);
 }
 
 .mb-range::-webkit-slider-thumb {
@@ -95,8 +98,8 @@
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: #204C43;
-  border: 2px solid #FFFFFF;
+  background: var(--mb-action);
+  border: 2px solid var(--mb-surface);
   box-shadow: 0 1px 4px rgba(32, 55, 45, 0.25);
   margin-top: -8px;
 }
@@ -104,19 +107,30 @@
 .mb-range::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: #C9D2C8;
+  background: var(--mb-border-subtle);
 }
 
 .mb-range::-moz-range-thumb {
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: #204C43;
-  border: 2px solid #FFFFFF;
+  background: var(--mb-action);
+  border: 2px solid var(--mb-surface);
   box-shadow: 0 1px 4px rgba(32, 55, 45, 0.25);
 }
 
 .mb-touch {
   min-height: 44px;
   min-width: 44px;
+}
+
+html { scrollbar-color: var(--mb-border) var(--mb-bg); scroll-padding-top: 6rem; }
+main { min-width: 0; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: var(--mb-support); }
+@media (max-width: 639px) {
+  .mb-chrome-header > .mb-shell-container { flex-wrap: wrap; }
+  .mb-chrome-header nav { gap: 0.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }

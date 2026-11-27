@@ -52,18 +52,18 @@ export function ExplanationPanel({
 
         {explanation ? (
           <>
-            <div className="rounded-[6px] border border-[#C9D2C8] bg-white p-4 flex flex-col gap-3">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#204C43] m-0">
+            <div className="rounded-[6px] border border-[var(--mb-border-subtle)] mb-adaptive-paper bg-[var(--mb-surface)] p-4 flex flex-col gap-3">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-accent)] m-0">
                 AI-generated explanation
               </p>
               <p className="mb-reading-prose m-0">{explanation.text}</p>
               {Array.isArray(explanation.important_terms) &&
               explanation.important_terms.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[#C9D2C8]">
+                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--mb-border-subtle)]">
                   {explanation.important_terms.map((term) => (
                     <span
                       key={term}
-                      className="px-2.5 py-0.5 rounded-[4px] bg-[#DCE9DF] text-[#20372D] text-[13px] font-semibold"
+                      className="px-2.5 py-0.5 rounded-[4px] bg-[var(--mb-support)] text-[var(--mb-text)] text-[13px] font-semibold"
                     >
                       {term}
                     </span>

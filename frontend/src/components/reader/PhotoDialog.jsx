@@ -35,7 +35,7 @@ export function PhotoDialog({ open, imageUrl, title = 'Original page photograph'
       }
     >
       {imageUrl ? (
-        <div className="bg-[#EFECE0] rounded-[6px] border border-[#C9D2C8] p-3 overflow-auto max-h-[65vh] flex justify-center">
+        <div className="bg-[var(--mb-surface-muted)] rounded-[6px] border border-[var(--mb-border-subtle)] p-3 overflow-auto max-h-[65vh] flex justify-center">
           <img
             src={imageUrl}
             alt="Uploaded textbook page photograph"

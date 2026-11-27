@@ -1,0 +1,32 @@
+{
+  "readability": "readable",
+  "retake_reasons": [],
+  "page": {
+    "schema_version": "1.0",
+    "id": "2b9fa570-b8dd-4e74-a827-3c50a8174e91",
+    "created_at": "2026-11-24T12:00:00Z",
+    "language": "en",
+    "title": "Photosynthesis",
+    "title_origin": "source",
+    "chunks": [
+      {
+        "id": "c0001",
+        "kind": "heading",
+        "text": "Photosynthesis",
+        "quality": "clear"
+      },
+      {
+        "id": "c0002",
+        "kind": "paragraph",
+        "text": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis.",
+        "quality": "clear"
+      }
+    ],
+    "extraction_warnings": [],
+    "summary": null,
+    "key_terms": [],
+    "key_terms_status": "unavailable",
+    "glossary": [],
+    "enrichment_status": "unavailable"
+  }
+}

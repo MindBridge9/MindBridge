@@ -1,0 +1,76 @@
+{
+  "attempt": {
+    "id": "attempt-retry-narrow",
+    "plan_id": "plan-1",
+    "question": {
+      "id": "question-narrow",
+      "text": "What role does sunlight play?",
+      "criterion_ids": [
+        "energy"
+      ]
+    },
+    "answer": "Sunlight supplies energy.",
+    "assistance": {
+      "used": false,
+      "kinds": []
+    },
+    "submitted_at": "2026-11-24T12:05:00Z",
+    "feedback": {
+      "status": "evaluated",
+      "message": "Let us look at the ideas your explanation shows.",
+      "assessments": [
+        {
+          "criterion_id": "energy",
+          "status": "demonstrated",
+          "explanation": "Your answer expresses this idea.",
+          "student_quote": "Sunlight supplies energy.",
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "light energy from sunlight"
+            }
+          ]
+        },
+        {
+          "criterion_id": "materials",
+          "status": "not_tested",
+          "explanation": "This question does not test this idea.",
+          "student_quote": null,
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "make glucose from carbon dioxide and water"
+            }
+          ]
+        }
+      ],
+      "uncertainty": null,
+      "targeted_explanation": {
+        "text": "Sunlight supplies energy. Plants use that energy to make glucose from carbon dioxide and water.",
+        "source_refs": [
+          {
+            "chunk_id": "c0002",
+            "quote": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis."
+          }
+        ]
+      },
+      "hint": "Separate the energy source from the materials.",
+      "follow_up_question": null,
+      "recommendation": "read_original",
+      "further_practice_useful": false
+    }
+  },
+  "retry_result": {
+    "previous_attempt_id": "attempt-check-misconception",
+    "current_attempt_id": "attempt-retry-narrow",
+    "independent_in_app": true,
+    "newly_demonstrated_ids": [
+      "energy"
+    ],
+    "retained_demonstrated_ids": [],
+    "still_needs_practice_ids": [],
+    "not_retested_ids": [
+      "materials"
+    ]
+  }
+}

@@ -1,9 +1,11 @@
+import { motion } from 'motion/react';
+import { useMotionPolicy } from '../motion/MotionSystem';
 import { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { IconButton } from './IconButton';
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 export function Dialog({
   open,
@@ -15,6 +17,7 @@ export function Dialog({
   size = 'md',
   className = '',
 }) {
+  const {instant}=useMotionPolicy();
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef(null);
@@ -51,6 +54,7 @@ export function Dialog({
         event.preventDefault();
         return;
       }
+      if (!panelRef.current.contains(document.activeElement)) { event.preventDefault(); focusable[0]?.focus(); return; }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (event.shiftKey && document.activeElement === first) {
@@ -90,29 +94,32 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#20372D]/55 p-0 sm:p-4"
+      className="mb-dialog-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[var(--mb-text)]/55 p-0 sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose?.();
         }
       }}
     >
-      <div
+      <motion.div
+        initial={instant ? false : {y:12,scale:.985}}
+        animate={{y:0,scale:1}}
+        transition={{duration:instant?0:.24,ease:[.23,1,.32,1]}}
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`mb-dialog-panel w-full ${widthClass} max-h-[92vh] sm:max-h-[88vh] flex flex-col bg-[#F7F5ED] text-[#20372D] border border-[#8B9B91] rounded-t-[12px] sm:rounded-[12px] shadow-[var(--mb-shadow-overlay)] overflow-hidden ${className}`}
+        className={`mb-dialog-panel w-full ${widthClass} max-h-[92vh] sm:max-h-[88vh] flex flex-col mb-adaptive-paper bg-[var(--mb-bg)] text-[var(--mb-text)] border border-[var(--mb-border)] rounded-t-[12px] sm:rounded-[12px] shadow-[var(--mb-shadow-overlay)] overflow-hidden ${className}`}
       >
-        <div className="flex items-start justify-between gap-3 px-5 py-4 bg-white border-b border-[#C9D2C8]">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 mb-adaptive-paper bg-[var(--mb-surface)] border-b border-[var(--mb-border-subtle)]">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-[18px] font-bold m-0 text-[#20372D]">
+            <h2 id={titleId} className="text-[18px] font-bold m-0 text-[var(--mb-text)]">
               {title}
             </h2>
             {description ? (
-              <p id={descId} className="text-[14px] text-[#3F584D] m-0 mt-1">
+              <p id={descId} className="text-[14px] text-[var(--mb-text-muted)] m-0 mt-1">
                 {description}
               </p>
             ) : null}
@@ -122,16 +129,16 @@ export function Dialog({
             label={`Close ${title}`}
             variant="quiet"
             onClick={onClose}
-            className="text-[#20372D] hover:bg-[#DCE9DF]/65"
+            className="text-[var(--mb-text)] hover:bg-[var(--mb-support)]/65"
           />
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div tabIndex={0} role="region" aria-label={`${title} content`} className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="px-5 py-3.5 bg-white border-t border-[#C9D2C8] flex flex-wrap justify-end gap-2.5">
+          <div className="px-5 py-3.5 mb-adaptive-paper bg-[var(--mb-surface)] border-t border-[var(--mb-border-subtle)] flex flex-wrap justify-end gap-2.5">
             {footer}
           </div>
         ) : null}
-      </div>
+      </motion.div>
     </div>
   );
 }

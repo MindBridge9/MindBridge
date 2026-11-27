@@ -12,8 +12,8 @@ export function ReadingModeControl({
     { value: 'original', label: 'Original' },
     {
       value: 'easy',
-      label: 'Easy',
-      disabled: !availableLevels.includes('easy'),
+      label: 'Simplified',
+      disabled: pending || !availableLevels.includes('easy'),
     },
   ];
 
@@ -28,12 +28,13 @@ export function ReadingModeControl({
         value={value}
         options={options}
         disabled={disabled}
+
         onChange={onChange}
       />
       {pending ? (
         <span
           role="status"
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#204C43]"
+          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--mb-accent)]"
         >
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
           Simplifying selected section…

@@ -18,6 +18,15 @@ export function PageProvider({ children }) {
 
   const currentUrlRef = useRef(null);
 
+  // Remove drafts left by older builds. P0 keeps answers in memory only.
+  useEffect(() => {
+    try {
+      for (const key of Object.keys(window.sessionStorage)) {
+        if (key.startsWith('mindbridge:draft:')) window.sessionStorage.removeItem(key);
+      }
+    } catch { /* Storage denial does not block reading. */ }
+  }, []);
+
   const revokeCurrentUrl = useCallback(() => {
     if (currentUrlRef.current) {
       URL.revokeObjectURL(currentUrlRef.current);

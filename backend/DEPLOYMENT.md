@@ -146,8 +146,13 @@ curl --include --request OPTIONS https://YOUR-BACKEND.onrender.com/api/define \
 | `POST /api/prepare-understanding` | Implemented; evaluate jointly with the full learning loop. |
 | `POST /api/check-understanding` | Initial and retry paths implemented; semantic quality blocks release. |
 
-**All six backend capabilities remain false.** No capability/release flag was
-activated. Owner 4 must review real API/browser evidence, error recovery,
+**Production capabilities default to false, independently of credentials.**
+`APPROVED_CAPABILITIES` explicitly allowlists reviewed read/simplify/define/explain/
+prepare operations. Learning evaluation cannot be added to that production list
+while its semantic gate is unresolved. `SYNTHETIC_DEVELOPMENT_INTEGRATION=true`
+enables all implemented operations only in development, for synthetic/nonpersonal
+integration. Startup rejects it in production. This setting never establishes
+acceptance or provider uptime. No production capability was activated. Owner 4 must review real API/browser evidence, error recovery,
 accessibility, source quality and release safety with the feature owners before
 activation. Learning requires both prepare and check; do not expose half a loop.
 The private feature matrix has deliberately not been regenerated or promoted.

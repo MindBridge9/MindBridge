@@ -1,14 +1,12 @@
+import { Link } from 'react-router-dom';
+import { ArrowUpRight } from 'lucide-react';
+import { BrandLogo } from '../common';
 export function SiteFooter() {
-  return (
-    <footer className="mb-chrome-footer border-t py-6 mt-12">
-      <div className="mb-shell-container flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[13px]">
-        <p className="m-0">
-          <strong className="font-semibold">MindBridge</strong> — Every page understood. Not just read.
-        </p>
-        <p className="m-0">
-          Team WHACKERS · wHACKiest 2026 · English printed textbook pages.
-        </p>
-      </div>
-    </footer>
-  );
+  return <footer className="mb-chrome-footer mb-editorial-footer">
+    <div className="mb-shell-container">
+      <div><BrandLogo size={28} /><p>Every page understood.<br />Not just read.</p></div>
+      <div><p>A textbook companion, built around understanding.</p><span>Team WHACKERS · wHACKiest 2026</span><span>English printed textbook pages.</span></div>
+      <Link to="/scan">Start with a page <ArrowUpRight size={16} aria-hidden="true" /></Link>
+    </div>
+  </footer>;
 }

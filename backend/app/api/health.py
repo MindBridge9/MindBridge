@@ -7,7 +7,6 @@ from ..schemas.health import HealthResponse, HealthResponseCapabilities
 router = APIRouter()
 
 # Semantic-quality acceptance for check_understanding remains open (see backend/README.md).
-CHECK_UNDERSTANDING_SEMANTIC_GATE_PASSED = False
 
 
 def _has_secret(value) -> bool:
@@ -52,17 +51,16 @@ def evaluate_capabilities(settings: Settings | None) -> tuple[HealthResponseCapa
             ['original'],
         )
 
-    return (
-        HealthResponseCapabilities(
-            read=True,
-            simplify=True,
-            define=True,
-            explain=True,
-            prepare_understanding=True,
-            check_understanding=CHECK_UNDERSTANDING_SEMANTIC_GATE_PASSED,
-        ),
-        ['original', 'easy'],
-    )
+    approved = set(getattr(settings, 'approved_capabilities', ()))
+    synthetic = (getattr(settings, 'environment', None) == 'development'
+                 and getattr(settings, 'synthetic_development_integration', False))
+    names = ('read', 'simplify', 'define', 'explain', 'prepare_understanding', 'check_understanding')
+    capabilities = HealthResponseCapabilities(**{
+        name: bool(synthetic or (name in approved and name != 'check_understanding'))
+        for name in names
+    })
+    return capabilities, ['original', 'easy'] if capabilities.simplify else ['original']
+
 
 
 @router.get(

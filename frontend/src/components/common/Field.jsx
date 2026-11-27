@@ -23,7 +23,7 @@ export function Field({
         >
           <span>{label}</span>
           {required ? (
-            <span className="text-[#A63D40]" aria-hidden="true">
+            <span className="text-[var(--mb-error)]" aria-hidden="true">
               *
             </span>
           ) : null}
@@ -38,12 +38,12 @@ export function Field({
           })
         : children}
       {hint ? (
-        <p id={hintId} className="mb-theme-muted text-[13px] text-[#3F584D] m-0">
+        <p id={hintId} className="mb-theme-muted text-[13px] text-[var(--mb-text-muted)] m-0">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-[13px] font-medium text-[#A63D40] m-0">
+        <p id={errorId} role="alert" className="text-[13px] font-medium text-[var(--mb-error)] m-0">
           {error}
         </p>
       ) : null}
@@ -54,7 +54,7 @@ export function Field({
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full min-h-[120px] rounded-[6px] border border-[#8B9B91] bg-white px-3.5 py-3 text-[#20372D] placeholder:text-[#4F685D] focus:border-[#204C43] ${className}`}
+      className={`w-full min-h-[120px] rounded-[6px] border border-[var(--mb-border)] bg-[var(--mb-surface)] px-3.5 py-3 text-[var(--mb-text)] placeholder:text-[var(--mb-text-muted)] focus:border-[var(--mb-action)] ${className}`}
       {...props}
     />
   );
@@ -63,7 +63,7 @@ export function Textarea({ className = '', ...props }) {
 export function Select({ className = '', children, ...props }) {
   return (
     <select
-      className={`min-h-[44px] w-full rounded-[6px] border border-[#8B9B91] bg-white px-3 py-2 text-[15px] text-[#20372D] ${className}`}
+      className={`min-h-[44px] w-full rounded-[6px] border border-[var(--mb-border)] bg-[var(--mb-surface)] px-3 py-2 text-[15px] text-[var(--mb-text)] ${className}`}
       {...props}
     >
       {children}
@@ -91,7 +91,7 @@ export function RangeInput({
         <label htmlFor={inputId} className="text-[14px] font-semibold">
           {label}
         </label>
-        <span className="mb-tabular text-[14px] font-semibold text-[#204C43]">
+        <span className="mb-tabular text-[14px] font-semibold text-[var(--mb-accent)]">
           {valueLabel ?? value}
         </span>
       </div>

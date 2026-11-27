@@ -7,9 +7,9 @@ import { ScanPage } from '../pages/ScanPage';
 import { ReaderPage } from '../pages/ReaderPage';
 import { validateImageFileMetadata, ImageValidationError } from '../lib/image';
 import * as api from '../lib/api';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
-import readSuccess from '../../../docs/fixtures/read.success.json';
-import readUnreadable from '../../../docs/fixtures/read.unreadable.json';
+import healthInitial from '../test-data/health.initial.json';
+import readSuccess from '../test-data/read.success.json';
+import readUnreadable from '../test-data/read.unreadable.json';
 
 function enabledFlags() {
   return {
@@ -74,7 +74,7 @@ describe('Image validation & ScanPage flow', () => {
       </MemoryRouter>
     );
 
-    const sampleBtn = await screen.findByRole('button', { name: /try preprocessed sample/i });
+    const sampleBtn = await screen.findByRole('button', { name: /try a sample/i });
     fireEvent.click(sampleBtn);
 
     expect(await screen.findByText(/Preprocessed sample page/i)).toBeInTheDocument();

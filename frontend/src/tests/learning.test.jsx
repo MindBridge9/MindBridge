@@ -7,13 +7,13 @@ import { ReaderPage } from '../pages/ReaderPage';
 import { usePage } from '../context/PageContext';
 import { useEffect } from 'react';
 import * as api from '../lib/api';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
-import readSuccess from '../../../docs/fixtures/read.success.json';
-import prepareSuccess from '../../../docs/fixtures/prepare.success.json';
-import checkMisconception from '../../../docs/fixtures/check.misconception.json';
-import checkUncertain from '../../../docs/fixtures/check.uncertain.json';
-import retrySuccess from '../../../docs/fixtures/retry.independent-success.json';
-import retryNarrow from '../../../docs/fixtures/retry.narrow.json';
+import healthInitial from '../test-data/health.initial.json';
+import readSuccess from '../test-data/read.success.json';
+import prepareSuccess from '../test-data/prepare.success.json';
+import checkMisconception from '../test-data/check.misconception.json';
+import checkUncertain from '../test-data/check.uncertain.json';
+import retrySuccess from '../test-data/retry.independent-success.json';
+import retryNarrow from '../test-data/retry.narrow.json';
 
 function SeededLearning({ pageData }) {
   const { setActivePage } = usePage();
@@ -162,7 +162,9 @@ describe('Learning loop: prepare, uncertain recovery, misconception repair, retr
     vi.spyOn(api, 'prepareUnderstanding').mockResolvedValue(prepareSuccess);
     const checkSpy = vi.spyOn(api, 'checkUnderstanding').mockImplementation(async (payload) => {
       if (checkSpy.mock.calls.length === 1) {
-        return echoAttempt(checkMisconception, payload);
+        const initial = structuredClone(checkMisconception);
+        initial.attempt.feedback.follow_up_question = retryNarrow.attempt.question;
+        return echoAttempt(initial, payload);
       }
       return echoAttempt(retryNarrow, payload);
     });
@@ -189,7 +191,7 @@ describe('Learning loop: prepare, uncertain recovery, misconception repair, retr
     fireEvent.click(screen.getByRole('button', { name: /check understanding/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: /try follow-up question/i }));
-    await screen.findByText(checkMisconception.attempt.feedback.follow_up_question.text);
+    await screen.findByText(retryNarrow.attempt.question.text);
 
     // Open hint -> marks assistance sticky
     fireEvent.click(screen.getByRole('button', { name: /show hint/i }));

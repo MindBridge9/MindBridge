@@ -9,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True, hide_input_in_errors=True)
+    # Readiness is an explicit reviewed allowlist, never inferred from secrets.
+    approved_capabilities: tuple[Literal['read', 'simplify', 'define', 'explain', 'prepare_understanding'], ...] = ()
+    synthetic_development_integration: bool = False
     ai_enabled: bool = True
     ai_fallback_enabled: bool = False
     client_requests_per_minute: int = Field(default=6, ge=1, le=1000)
@@ -54,6 +57,8 @@ class Settings(BaseModel):
 
     @model_validator(mode='after')
     def fallback_configuration(self):
+        if self.synthetic_development_integration and self.environment != 'development':
+            raise ValueError('Synthetic integration is restricted to development; no production acceptance is implied.')
         if self.ai_fallback_enabled and (self.ai_provider != 'groq' or
             not self.groq_api_key or not self.groq_api_key.get_secret_value().strip() or
             not self.gemini_api_key or not self.gemini_api_key.get_secret_value().strip()):
@@ -114,7 +119,7 @@ class Settings(BaseModel):
                 name = name.strip()
                 if separator and name in ('GEMINI_API_KEY', 'GEMINI_MODEL', 'GROQ_API_KEY', 'GROQ_MODEL', 'AI_PROVIDER', 'CORS_ORIGINS', 'MINDBRIDGE_ENV', 'AI_ENABLED', 'AI_FALLBACK_ENABLED',
                     'CLIENT_REQUESTS_PER_MINUTE', 'GLOBAL_REQUESTS_PER_MINUTE', 'GLOBAL_REQUESTS_PER_DAY',
-                    'MAX_RATE_LIMIT_CLIENTS', 'TRUSTED_PROXY_CIDRS'):
+                    'MAX_RATE_LIMIT_CLIENTS', 'TRUSTED_PROXY_CIDRS', 'APPROVED_CAPABILITIES', 'SYNTHETIC_DEVELOPMENT_INTEGRATION'):
                     try:
                         parts = shlex.split(raw, comments=True)
                     except ValueError:
@@ -124,6 +129,8 @@ class Settings(BaseModel):
                     values[name] = parts[0] if parts else ''
         values.update(os.environ)
         return cls(
+            approved_capabilities=tuple(x.strip() for x in values.get('APPROVED_CAPABILITIES', '').split(',') if x.strip()),
+            synthetic_development_integration=values.get('SYNTHETIC_DEVELOPMENT_INTEGRATION', 'false'),
             ai_enabled=values.get('AI_ENABLED', 'true'),
             ai_fallback_enabled=values.get('AI_FALLBACK_ENABLED', 'false'),
             client_requests_per_minute=values.get('CLIENT_REQUESTS_PER_MINUTE', 6),

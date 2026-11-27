@@ -106,15 +106,8 @@ def test_config(monkeypatch):
         assert response.status_code == 200
         assert 'secret-content' not in response.text
         payload = response.json()
-        assert payload['capabilities'] == {
-            'read': True,
-            'simplify': True,
-            'define': True,
-            'explain': True,
-            'prepare_understanding': True,
-            'check_understanding': False,
-        }
-        assert payload['reading_levels'] == ['original', 'easy']
+        assert not any(payload['capabilities'].values())
+        assert payload['reading_levels'] == ['original']
     with pytest.raises(ValidationError):
         Settings(cors_origins=('*',))
 

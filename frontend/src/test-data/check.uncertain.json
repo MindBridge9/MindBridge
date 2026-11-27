@@ -1,0 +1,60 @@
+{
+  "attempt": {
+    "id": "attempt-check-uncertain",
+    "plan_id": "plan-1",
+    "question": {
+      "id": "question-1",
+      "text": "Explain how sunlight, carbon dioxide and water help plants make glucose.",
+      "criterion_ids": [
+        "energy",
+        "materials"
+      ]
+    },
+    "answer": "The process works differently in the example I mean.",
+    "assistance": {
+      "used": false,
+      "kinds": []
+    },
+    "submitted_at": "2026-11-24T12:05:00Z",
+    "feedback": {
+      "status": "uncertain",
+      "message": "Please explain what you mean in a little more detail.",
+      "assessments": [
+        {
+          "criterion_id": "energy",
+          "status": "unclear",
+          "explanation": "There is not enough clear evidence to assess this idea.",
+          "student_quote": null,
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "light energy from sunlight"
+            }
+          ]
+        },
+        {
+          "criterion_id": "materials",
+          "status": "unclear",
+          "explanation": "There is not enough clear evidence to assess this idea.",
+          "student_quote": null,
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "make glucose from carbon dioxide and water"
+            }
+          ]
+        }
+      ],
+      "uncertainty": {
+        "reason": "evaluation_uncertain",
+        "message": "This answer cannot be evaluated reliably yet."
+      },
+      "targeted_explanation": null,
+      "hint": null,
+      "follow_up_question": null,
+      "recommendation": "clarify_answer",
+      "further_practice_useful": null
+    }
+  },
+  "retry_result": null
+}

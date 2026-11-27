@@ -1,37 +1,10 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { checkUnderstanding, prepareUnderstanding } from '../lib/api';
+import { validateResponse } from '../lib/validateResponse';
 import { buildSourceContext } from '../lib/sourceContext';
 
 export const MAX_SESSION_ATTEMPTS = 20;
 export const MAX_ANSWER_CHARS = 2000;
-
-function getDraftStorageKey(pageId, chunkId) {
-  return pageId && chunkId ? `mindbridge:draft:${pageId}:${chunkId}` : null;
-}
-
-function readSessionDraft(pageId, chunkId) {
-  try {
-    const key = getDraftStorageKey(pageId, chunkId);
-    if (!key || typeof window === 'undefined' || !window.sessionStorage) return '';
-    return window.sessionStorage.getItem(key) || '';
-  } catch {
-    return '';
-  }
-}
-
-function writeSessionDraft(pageId, chunkId, draft) {
-  try {
-    const key = getDraftStorageKey(pageId, chunkId);
-    if (!key || typeof window === 'undefined' || !window.sessionStorage) return;
-    if (draft) {
-      window.sessionStorage.setItem(key, draft);
-    } else {
-      window.sessionStorage.removeItem(key);
-    }
-  } catch {
-    // Ignore storage denial
-  }
-}
 
 function generateId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -52,8 +25,6 @@ function addAssistanceKind(assistance, kind) {
 }
 
 export function createInitialLearningState({ pageId = null, chunkId = null, restoredSession = null } = {}) {
-  const savedDraft = readSessionDraft(pageId, chunkId);
-
   if (
     restoredSession &&
     restoredSession.page_id === pageId &&
@@ -78,12 +49,12 @@ export function createInitialLearningState({ pageId = null, chunkId = null, rest
       sessionId: restoredSession.id || generateId(),
       pageId,
       chunkId,
-      stage,
+      stage: ({ submitting: 'answering', submitting_retry: 'retrying' })[restoredSession.stage] || restoredSession.stage || stage,
       plan: restoredSession.plan,
-      draft: restoredSession.draft || savedDraft || '',
+      draft: restoredSession.draft || '',
       validationError: null,
       error: null,
-      assistance: { used: false, kinds: [] },
+      assistance: restoredSession.assistance || lastAttempt?.assistance || { used: false, kinds: [] },
       attempts,
       evaluatedInitialBaseline: baseline,
       latestRetryResult: restoredSession.retry_result || null,
@@ -97,7 +68,7 @@ export function createInitialLearningState({ pageId = null, chunkId = null, rest
     chunkId,
     stage: 'preparing',
     plan: null,
-    draft: savedDraft,
+    draft: '',
     validationError: null,
     error: null,
     assistance: { used: false, kinds: [] },
@@ -110,6 +81,9 @@ export function createInitialLearningState({ pageId = null, chunkId = null, rest
 
 export function learningSessionReducer(state, action) {
   switch (action.type) {
+    case 'RESTORE':
+      return createInitialLearningState(action);
+
     case 'RESET':
       return {
         ...createInitialLearningState({
@@ -265,6 +239,15 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
     createInitialLearningState
   );
 
+  const targetRef = useRef(`${page?.id}:${chunkId}`);
+  useEffect(() => {
+    const target = `${page?.id}:${chunkId}`;
+    if (targetRef.current === target) return;
+    targetRef.current = target;
+    cancelInFlight();
+    dispatch({ type: 'RESTORE', pageId: page?.id || null, chunkId, restoredSession });
+  }, [page?.id, chunkId]);
+
   const invocationRef = useRef(0);
   const controllerRef = useRef(null);
 
@@ -282,15 +265,9 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
     };
   }, [cancelInFlight]);
 
-  // Preserve student draft across accidental tab refresh
-  useEffect(() => {
-    if (!page?.id || !chunkId) return;
-    writeSessionDraft(page.id, chunkId, state.draft);
-  }, [page?.id, chunkId, state.draft]);
-
   // Sync session snapshot upwards when plan/attempts/draft update
   useEffect(() => {
-    if (!onSessionChange || !state.plan || !page) return;
+    if (!onSessionChange || !state.plan || !page || state.pageId !== page.id || state.chunkId !== chunkId) return;
     onSessionChange({
       id: state.sessionId,
       page_id: page.id,
@@ -299,6 +276,8 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
       attempts: state.attempts,
       retry_result: state.latestRetryResult,
       draft: state.draft,
+      stage: state.stage,
+      assistance: state.assistance,
     });
   }, [
     onSessionChange,
@@ -309,6 +288,8 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
     state.attempts,
     state.latestRetryResult,
     state.draft,
+    state.stage,
+    state.assistance,
   ]);
 
   const prepare = useCallback(async () => {
@@ -353,6 +334,7 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
         return;
       }
 
+      validateResponse('LearningPlan', plan, { source, chunk_id: chunkId });
       dispatch({ type: 'PREPARE_SUCCESS', plan });
     } catch (err) {
       if (invocationId !== invocationRef.current || err?.aborted) return;
@@ -378,7 +360,7 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
   const atAttemptCap = state.attempts.length >= MAX_SESSION_ATTEMPTS;
 
   const submitAnswer = useCallback(async () => {
-    if (!page || !state.plan || !currentQuestion) return;
+    if (!page || !state.plan || !currentQuestion || controllerRef.current) return;
     if (atAttemptCap) {
       dispatch({
         type: 'SET_VALIDATION_ERROR',
@@ -452,6 +434,7 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
         return;
       }
 
+      validateResponse('EvaluationResult', result, payload);
       dispatch({ type: 'SUBMIT_SUCCESS', result });
     } catch (err) {
       if (invocationId !== invocationRef.current || err?.aborted) return;
@@ -483,6 +466,10 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
     setDraft: (draft) => dispatch({ type: 'SET_DRAFT', draft }),
     submitAnswer,
     cancelSubmit,
+    cancelPrepare: () => {
+      cancelInFlight();
+      dispatch({ type: 'PREPARE_ERROR', error: { code: 'REQUEST_ABORTED', message: 'Question preparation cancelled. You can try again or return to reading.', retryable: true } });
+    },
     startRetry: () => dispatch({ type: 'START_RETRY' }),
     clarifyUncertain: () => dispatch({ type: 'CLARIFY_UNCERTAIN' }),
     requestHelp: (kind) => dispatch({ type: 'REQUEST_HELP', kind }),
@@ -490,7 +477,7 @@ export function useLearningSession({ page, chunkId, restoredSession = null, onSe
     viewResults: () => dispatch({ type: 'VIEW_RESULTS' }),
     resetSession: () => {
       cancelInFlight();
-      writeSessionDraft(page?.id, chunkId, '');
+      onSessionChange?.(null);
       dispatch({ type: 'RESET', pageId: page?.id || null, chunkId });
     },
   };

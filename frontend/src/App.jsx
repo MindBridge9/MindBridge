@@ -1,5 +1,7 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import { BrowserRouter, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { MotionSystem } from './components/motion/MotionSystem';
+import { Suspense, lazy, useEffect, useMemo } from 'react';
+import { createBrowserRouter, RouterProvider, Route, Routes, useParams, useBlocker, useLocation } from 'react-router-dom';
+import { Button, Dialog } from './components/common';
 import { ApiProvider } from './context/ApiContext';
 import { PreferencesProvider } from './context/PreferencesContext';
 import { PageProvider, usePage } from './context/PageContext';
@@ -8,206 +10,26 @@ import { ScanPage } from './pages/ScanPage';
 import { ReaderPage } from './pages/ReaderPage';
 import { LearningPage } from './pages/LearningPage';
 import { MissingPage } from './pages/MissingPage';
-import {
-  clearAllSavedData,
-  deleteSavedPage,
-  getSavedPage,
-  listSavedPages,
-  loadSavedPageImage,
-  saveLearningSessionLocal,
-  savePageLocal,
-} from './lib/indexedDb';
-
 const DevFixtureHarness = import.meta.env.DEV
   ? lazy(() => import('./mocks/DevFixtureHarness'))
   : null;
 
-function SavedPageRoute({ renderPage }) {
-  const { pageId } = useParams();
-  const { page, setActivePage } = usePage();
-  const [restoring, setRestoring] = useState(false);
-
-  useEffect(() => {
-    if ((page && page.id === pageId) || !pageId) return;
-    let cancelled = false;
-    setRestoring(true);
-    getSavedPage(pageId).then(async (res) => {
-      if (cancelled) return;
-      if (res.ok && res.item?.page) {
-        const blob = res.item.image_key
-          ? await loadSavedPageImage(res.item.image_key)
-          : null;
-        if (cancelled) return;
-        const nextSimpCache = {};
-        for (const s of res.item.simplifications || []) {
-          for (const item of s.items || []) {
-            nextSimpCache[`${res.item.page.id}:${item.chunk_id}:${s.level || 'easy'}`] = item;
-          }
-        }
-        setActivePage(res.item.page, blob, {
-          readability:
-            res.item.page.extraction_warnings?.length > 0 ? 'partial' : 'readable',
-          origin: 'saved',
-          simplificationCache: nextSimpCache,
-          learningSession: res.item.learningSession || null,
-        });
-      }
-      setRestoring(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [page, pageId, setActivePage]);
-
-  if (restoring && (!page || page.id !== pageId)) {
-    return null;
-  }
-  return renderPage();
+function ActiveLearningRoute() {
+  const { pageId, chunkId } = useParams();
+  return <LearningPage key={`${pageId}:${chunkId}`} />;
 }
 
 function MindBridgeRoutes() {
-  const navigate = useNavigate();
-  const { page, imageBlob, simplificationCache, definitionCache, setActivePage, clearActivePage } =
-    usePage();
-  const [savedPages, setSavedPages] = useState([]);
-
-  const refreshSavedPages = useCallback(async () => {
-    const res = await listSavedPages();
-    if (res.ok) {
-      setSavedPages(res.items);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshSavedPages();
-  }, [refreshSavedPages]);
-
-  const handleSaveCurrentPage = useCallback(
-    async (targetPage) => {
-      if (!targetPage) return;
-      const simplifications = Object.values(simplificationCache || {}).reduce((acc, item) => {
-        if (!item?.chunk_id) return acc;
-        acc.push({ page_id: targetPage.id, level: 'easy', items: [item] });
-        return acc;
-      }, []);
-      const definitions = Object.values(definitionCache || {});
-      const result = await savePageLocal({
-        page: targetPage,
-        imageBlob,
-        simplifications,
-        definitions,
-      });
-      if (result.ok) {
-        await refreshSavedPages();
-      }
-    },
-    [imageBlob, simplificationCache, definitionCache, refreshSavedPages]
-  );
-
-  const handleOpenSavedPage = useCallback(
-    async (savedEntry) => {
-      if (!savedEntry?.page) return;
-      let restoredBlob = null;
-      if (savedEntry.image_key) {
-        restoredBlob = await loadSavedPageImage(savedEntry.image_key);
-      }
-      const nextSimpCache = {};
-      for (const s of savedEntry.simplifications || []) {
-        for (const item of s.items || []) {
-          nextSimpCache[`${savedEntry.page.id}:${item.chunk_id}:${s.level || 'easy'}`] = item;
-        }
-      }
-      setActivePage(savedEntry.page, restoredBlob, {
-        readability:
-          savedEntry.page.extraction_warnings?.length > 0 ? 'partial' : 'readable',
-        origin: 'saved',
-        simplificationCache: nextSimpCache,
-        learningSession: savedEntry.learningSession || null,
-      });
-      navigate(`/read/${savedEntry.page.id}`);
-    },
-    [setActivePage, navigate]
-  );
-
-  const handleDeleteSavedPage = useCallback(
-    async (pageIdToDelete) => {
-      await deleteSavedPage(pageIdToDelete);
-      await refreshSavedPages();
-    },
-    [refreshSavedPages]
-  );
-
-  const handleClearAllSavedData = useCallback(async () => {
-    await clearAllSavedData();
-    clearActivePage();
-    setSavedPages([]);
-  }, [clearActivePage]);
-
-  const handleSaveSession = useCallback(
-    async (sessionSnapshot) => {
-      if (!sessionSnapshot?.page_id) return;
-      await saveLearningSessionLocal(sessionSnapshot);
-      await refreshSavedPages();
-    },
-    [refreshSavedPages]
-  );
-
-  const isSaved = Boolean(page && savedPages.some((s) => s.page?.id === page.id));
-
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <HomePage
-            savedPages={savedPages}
-            onOpenSavedPage={handleOpenSavedPage}
-            onDeleteSavedPage={handleDeleteSavedPage}
-            onClearAllSavedData={handleClearAllSavedData}
-          />
-        }
-      />
+      <Route path="/" element={<HomePage />} />
       <Route path="/scan" element={<ScanPage />} />
-      <Route
-        path="/read/:pageId"
-        element={
-          <SavedPageRoute
-            renderPage={() => (
-              <ReaderPage
-                onSaveCurrentPage={handleSaveCurrentPage}
-                isSavedPage={isSaved}
-              />
-            )}
-          />
-        }
-      />
-      <Route
-        path="/learn/:pageId/:chunkId"
-        element={
-          <SavedPageRoute
-            renderPage={() => <LearningPage onSaveSession={handleSaveSession} />}
-          />
-        }
-      />
+      <Route path="/read/:pageId" element={<ReaderPage />} />
+      <Route path="/learn/:pageId/:chunkId" element={<ActiveLearningRoute />} />
       {import.meta.env.DEV && DevFixtureHarness ? (
-        <Route
-          path="/__dev/harness"
-          element={
-            <Suspense fallback={null}>
-              <DevFixtureHarness />
-            </Suspense>
-          }
-        />
+        <Route path="/__dev/harness" element={<Suspense fallback={null}><DevFixtureHarness /></Suspense>} />
       ) : null}
-      <Route
-        path="*"
-        element={
-          <MissingPage
-            title="Page not found"
-            description="This address does not match a MindBridge screen. Return to Home or scan a textbook page."
-          />
-        }
-      />
+      <Route path="*" element={<MissingPage title="Page not found" description="Return home or scan a textbook page to continue." />} />
     </Routes>
   );
 }
@@ -216,20 +38,43 @@ export function AppProviders({ children, apiProps = {} }) {
   return (
     <ApiProvider {...apiProps}>
       <PreferencesProvider>
-        <PageProvider>{children}</PageProvider>
+        <PageProvider><MotionSystem>{children}</MotionSystem></PageProvider>
       </PreferencesProvider>
     </ApiProvider>
   );
 }
 
-export function App() {
-  return (
-    <BrowserRouter>
-      <AppProviders>
-        <MindBridgeRoutes />
-      </AppProviders>
-    </BrowserRouter>
+function SessionNavigationGuard() {
+  const { learningSession, setLearningSession } = usePage();
+  const location = useLocation();
+  const belongsToSession = (pathname) => learningSession && (
+    pathname === `/read/${learningSession.page_id}` ||
+    pathname === `/learn/${learningSession.page_id}/${learningSession.chunk_id}`
   );
+  const blocker = useBlocker(({ nextLocation }) => Boolean(
+    learningSession?.plan && learningSession.stage !== 'results' && !belongsToSession(nextLocation.pathname)
+  ));
+  useEffect(() => {
+    if (learningSession && !belongsToSession(location.pathname)) setLearningSession(null);
+  }, [location.pathname, learningSession, setLearningSession]);
+  useEffect(() => {
+    if (!learningSession?.plan || learningSession.stage === 'results') return;
+    const warn = (event) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [learningSession?.plan, learningSession?.stage]);
+  return <Dialog open={blocker.state === 'blocked'} title="Leave unfinished practice?" description="Leaving clears this practice and its answer draft. Your current textbook page stays open." onClose={() => blocker.reset?.()} footer={
+    <><Button variant="secondary" onClick={() => blocker.reset?.()}>Keep practicing</Button><Button variant="destructive" onClick={() => { setLearningSession(null); blocker.proceed?.(); }}>Leave practice</Button></>
+  }><p className="m-0">You can return to the reader and resume this practice without losing your draft.</p></Dialog>;
+}
+
+function ApplicationRoot() {
+  return <AppProviders><SessionNavigationGuard /><MindBridgeRoutes /></AppProviders>;
+}
+
+export function App() {
+  const router = useMemo(() => createBrowserRouter([{ path: '*', element: <ApplicationRoot /> }]), []);
+  return <RouterProvider router={router} />;
 }
 
 export default App;

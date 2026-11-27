@@ -8,24 +8,30 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@fontsource/lexend": "^5.1.0",
     "@fontsource/manrope": "^5.1.0",
     "lucide-react": "^0.468.0",
+    "motion": "^14.14.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.1",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "jsdom": "^26.0.0",
     "tailwindcss": "^4.0.0",
-    "vitest": "^3.0.0"
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12"
   }
 }

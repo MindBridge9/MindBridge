@@ -6,6 +6,7 @@ export function UnderstandingForm({
   question,
   draft = '',
   pending = false,
+  canSubmit = true,
   error = null,
   validationError = null,
   canPronounce = false,
@@ -19,14 +20,14 @@ export function UnderstandingForm({
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSubmit?.();
+    if (canSubmit && !pending) onSubmit?.();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div className="mb-reading-paper p-5 flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="mb-answer-form flex flex-col gap-5">
+      <div className="mb-question-panel mb-reading-paper p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className="mb-theme-muted text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D] m-0">
+          <p className="mb-theme-muted text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-text-muted)] m-0">
             Comprehension question
           </p>
           {canPronounce && onPronounceQuestion ? (
@@ -41,7 +42,7 @@ export function UnderstandingForm({
           ) : null}
         </div>
         <p className="mb-reading-prose font-semibold m-0">{question.text}</p>
-        <p className="mb-theme-muted text-[13px] text-[#3F584D] m-0">
+        <p className="mb-theme-muted text-[13px] text-[var(--mb-text-muted)] m-0">
           Explain the idea in your own words. Spelling and grammar do not affect feedback.
         </p>
       </div>
@@ -68,7 +69,7 @@ export function UnderstandingForm({
 
       {pending ? (
         <LoadingStatus
-          message="Checking your explanation against the textbook rubric…"
+          message="Checking your explanation against the textbook’s understanding criteria…"
           detail="Evaluating meaning and gathering source references."
           onCancel={onCancelSubmit}
           cancelLabel="Cancel waiting"
@@ -81,14 +82,14 @@ export function UnderstandingForm({
           title="Could not evaluate your answer"
           actions={
             error.retryable ? (
-              <Button type="submit" variant="primary" size="sm">
+              <Button type="submit" disabled={!canSubmit} variant="primary" size="sm">
                 Try again
               </Button>
             ) : null
           }
         >
           <p className="m-0">{error.message}</p>
-          <p className="m-0 mt-1 text-[13px] text-[#3F584D]">
+          <p className="m-0 mt-1 text-[13px] text-[var(--mb-text-muted)]">
             Your draft answer is safely preserved above.
           </p>
           {error.retryAfterSeconds ? (
@@ -100,14 +101,14 @@ export function UnderstandingForm({
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="mb-theme-muted flex items-start gap-2 text-[12px] text-[#3F584D] m-0 max-w-[54ch]">
-          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-[#204C43]" aria-hidden="true" />
+        <p className="mb-theme-muted flex items-start gap-2 text-[12px] text-[var(--mb-text-muted)] m-0 max-w-[54ch]">
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-[var(--mb-accent)]" aria-hidden="true" />
           <span>
             Answers are sent to the server’s configured external AI provider (Groq or Google Gemini)
             for formative feedback.
           </span>
         </p>
-        <Button type="submit" variant="primary" size="lg" loading={pending}>
+        <Button type="submit" disabled={!canSubmit} variant="primary" size="lg" loading={pending}>
           {submitLabel}
         </Button>
       </div>

@@ -1,3 +1,5 @@
+import { motion } from 'motion/react';
+import { useMotionPolicy } from '../motion/MotionSystem';
 import { RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '../common';
 import { formatBytes } from '../../lib/image';
@@ -6,23 +8,26 @@ export function ImagePreviewCard({
   previewUrl,
   metadata,
   disabled = false,
+  processing = false,
   onRetake,
   onDiscard,
 }) {
+  const {instant}=useMotionPolicy();
   if (!previewUrl || !metadata) return null;
 
   return (
-    <div className="rounded-[12px] border border-[#8B9B91] bg-white overflow-hidden">
-      <div className="bg-[#EFECE0] p-3 flex items-center justify-center max-h-[420px] overflow-hidden">
+    <motion.div initial={instant?false:{y:10}} animate={{y:0}} transition={{duration:instant?0:.22}} data-processing={processing} className="mb-image-preview rounded-[12px] border border-[var(--mb-border)] bg-[var(--mb-surface)] overflow-hidden">
+      <div className="mb-scan-image-stage bg-[var(--mb-surface-muted)] p-3 flex items-center justify-center max-h-[420px] overflow-hidden">
         <img
           src={previewUrl}
           alt="Selected textbook page preview"
-          className="max-h-[396px] w-auto max-w-full object-contain rounded-[6px] border border-[#C9D2C8]"
+          className="max-h-[396px] w-auto max-w-full object-contain rounded-[6px] border border-[var(--mb-border-subtle)]"
         />
+        {processing ? <div className="mb-scan-sweep" aria-hidden="true"><span /></div> : null}
       </div>
-      <div className="p-4 flex flex-col gap-3 border-t border-[#C9D2C8]">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-[#3F584D]">
-          <span className="font-semibold text-[#20372D] truncate max-w-[260px]">
+      <div className="p-4 flex flex-col gap-3 border-t border-[var(--mb-border-subtle)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-[var(--mb-text-muted)]">
+          <span className="font-semibold text-[var(--mb-text)] truncate max-w-[260px]">
             {metadata.fileName}
           </span>
           <span className="mb-tabular">
@@ -51,6 +56,6 @@ export function ImagePreviewCard({
           </Button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

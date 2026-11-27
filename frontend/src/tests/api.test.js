@@ -10,8 +10,9 @@ import {
   simplify,
 } from '../lib/api';
 import { buildSourceContext } from '../lib/sourceContext';
-import readSuccess from '../../../docs/fixtures/read.success.json';
-import errorRateLimit from '../../../docs/fixtures/error.rate-limit.json';
+import healthInitial from '../test-data/health.initial.json';
+import readSuccess from '../test-data/read.success.json';
+import errorRateLimit from '../test-data/error.rate-limit.json';
 
 describe('API client and SourceContext', () => {
   const originalFetch = globalThis.fetch;
@@ -47,7 +48,7 @@ describe('API client and SourceContext', () => {
         )
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: 'ok', api_version: '1.0' }), { status: 200 })
+        new Response(JSON.stringify(healthInitial), { status: 200 })
       );
     globalThis.fetch = fetchMock;
 
@@ -121,8 +122,8 @@ describe('API client and SourceContext', () => {
       Promise.resolve(new Response(JSON.stringify({ ok: url }), { status: 200 }))
     );
 
-    await prepareUnderstanding({});
-    await checkUnderstanding({});
+    await expect(prepareUnderstanding({})).rejects.toMatchObject({ code: 'AI_INVALID_RESPONSE' });
+    await expect(checkUnderstanding({})).rejects.toMatchObject({ code: 'AI_INVALID_RESPONSE' });
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(/\/api\/prepare-understanding$/);
     expect(globalThis.fetch.mock.calls[1][0]).toMatch(/\/api\/check-understanding$/);
   });

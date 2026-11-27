@@ -1,13 +1,13 @@
 export function SourceQuote({ quote, chunkId = null, label = 'From textbook', className = '' }) {
   return (
     <figure
-      className={`mb-theme-surface rounded-[6px] border border-[#8B9B91] bg-[#F7F5ED] p-3.5 m-0 ${className}`}
+      className={`mb-source-quote mb-theme-surface rounded-[6px] border border-[var(--mb-border)] bg-[var(--mb-bg)] p-3.5 m-0 ${className}`}
     >
-      <figcaption className="mb-theme-muted flex items-center justify-between gap-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D] mb-1.5">
+      <figcaption className="mb-theme-muted flex items-center justify-between gap-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-text-muted)] mb-1.5">
         <span>{label}</span>
-        {chunkId ? <span className="mb-tabular font-mono">{chunkId}</span> : null}
+        {chunkId ? <details className="mb-source-reference"><summary>Reference</summary><span className="mb-tabular font-mono">{chunkId}</span></details> : null}
       </figcaption>
-      <blockquote className="mb-reading-prose-inline m-0 text-[15px]">
+      <blockquote className="mb-reading-prose-inline m-0 ">
         “{quote}”
       </blockquote>
     </figure>

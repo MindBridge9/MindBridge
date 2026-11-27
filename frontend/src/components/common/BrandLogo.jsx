@@ -1,38 +1,9 @@
-export function BrandLogo({ size = 28, showWordmark = true, className = '' }) {
-  return (
-    <span className={`inline-flex items-center gap-2.5 select-none ${className}`}>
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 32 32"
-        fill="none"
-        aria-hidden="true"
-        className="shrink-0"
-      >
-        <path
-          d="M4 9.5C4 8.39543 4.89543 7.5 6 7.5H12.5C14.433 7.5 16 9.067 16 11V24.5C14.5 23.3 12.6 22.75 10.5 22.75H6C4.89543 22.75 4 21.8546 4 20.75V9.5Z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M28 9.5C28 8.39543 27.1046 7.5 26 7.5H19.5C17.567 7.5 16 9.067 16 11V24.5C17.5 23.3 19.4 22.75 21.5 22.75H26C27.1046 22.75 28 21.8546 28 20.75V9.5Z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M8.5 15.5C10.8 12.2 13.5 10.75 16 10.75C18.5 10.75 21.2 12.2 23.5 15.5"
-          stroke="#204C43"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-      </svg>
-      {showWordmark && (
-        <span className="font-bold tracking-[-0.02em] text-[20px] leading-none text-inherit">
-          MindBridge
-        </span>
-      )}
-    </span>
-  );
+export function BrandLogo({ size = 34, showWordmark = true, className = '' }) {
+  return <span className={`mb-brand ${className}`}>
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <rect width="36" height="36" rx="10" fill="var(--mb-action)" />
+      <path d="M8 11.5C12 10 15 11 18 14C21 11 24 10 28 11.5V25C24 23.5 21 24 18 27C15 24 12 23.5 8 25V11.5Z" stroke="white" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M18 14V27M12 16.5C14 16.5 15 17 16 18M20 18C21 17 22 16.5 24 16.5" stroke="white" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>{showWordmark&&<span>MindBridge<span className="mb-brand-dot">.</span></span>}
+  </span>;
 }

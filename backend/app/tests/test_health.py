@@ -62,8 +62,8 @@ def test_health_no_provider_or_unsupported_provider():
     ('groq', {'groq_api_key': SecretStr('test-groq-secret')}),
     ('gemini', {'gemini_api_key': SecretStr('test-gemini-secret')}),
 ])
-def test_health_valid_provider_enables_ready_capabilities_and_keeps_semantic_gate_closed(provider, kwargs):
-    settings = Settings(environment='development', ai_enabled=True, ai_provider=provider, **kwargs)
+def test_health_reviewed_provider_enables_only_allowlisted_capabilities_and_keeps_semantic_gate_closed(provider, kwargs):
+    settings = Settings(environment='development', ai_enabled=True, ai_provider=provider, approved_capabilities=('read', 'simplify', 'define', 'explain', 'prepare_understanding'), **kwargs)
     with TestClient(create_app(settings)) as client:
         res = client.get('/api/health')
         assert res.status_code == 200
@@ -81,3 +81,25 @@ def test_health_valid_provider_enables_ready_capabilities_and_keeps_semantic_gat
         assert 'guided' not in body['reading_levels']
         assert 'test-groq-secret' not in res.text
         assert 'test-gemini-secret' not in res.text
+
+
+def test_credentials_alone_do_not_prove_readiness():
+    caps, levels = evaluate_capabilities(Settings(environment='development', gemini_api_key=SecretStr('synthetic')))
+    assert not any(caps.model_dump().values())
+    assert levels == ['original']
+
+
+def test_reviewed_allowlist_and_learning_gate():
+    caps, levels = evaluate_capabilities(Settings(gemini_api_key=SecretStr('synthetic'), approved_capabilities=('read', 'simplify')))
+    assert caps.read and caps.simplify
+    assert not caps.define and not caps.prepare_understanding and not caps.check_understanding
+    assert levels == ['original', 'easy']
+
+
+def test_synthetic_development_integration_is_explicit_and_never_production():
+    caps, _ = evaluate_capabilities(Settings(environment='development', gemini_api_key=SecretStr('synthetic'), synthetic_development_integration=True))
+    assert all(caps.model_dump().values())
+    with pytest.raises(ValidationError):
+        Settings(environment='production', synthetic_development_integration=True)
+    with pytest.raises(ValidationError):
+        Settings(approved_capabilities=('check_understanding',))

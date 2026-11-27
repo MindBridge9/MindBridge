@@ -5,7 +5,7 @@ import { AppProviders } from '../App';
 import { HomePage } from '../pages/HomePage';
 import { ScanPage } from '../pages/ScanPage';
 import { MissingPage } from '../pages/MissingPage';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
+import healthInitial from '../test-data/health.initial.json';
 
 describe('Accessibility and landmark structure', () => {
   it('exposes skip link, primary navigation, main landmark, and h1 on HomePage and ScanPage', async () => {

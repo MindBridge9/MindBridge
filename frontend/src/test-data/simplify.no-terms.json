@@ -1,0 +1,19 @@
+{
+  "page_id": "2b9fa570-b8dd-4e74-a827-3c50a8174e91",
+  "level": "easy",
+  "items": [
+    {
+      "chunk_id": "c0002",
+      "text": "Plants use light energy from sunlight. They make glucose from carbon dioxide and water. This process is called photosynthesis.",
+      "source_refs": [
+        {
+          "chunk_id": "c0002",
+          "quote": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis."
+        }
+      ],
+      "preserved_terms": [],
+      "warnings": [],
+      "terminology_check_status": "unavailable"
+    }
+  ]
+}

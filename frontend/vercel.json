@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/scan", "destination": "/index.html" },
+    { "source": "/read/:path*", "destination": "/index.html" },
+    { "source": "/learn/:path*", "destination": "/index.html" }
+  ]
+}

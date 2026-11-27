@@ -8,7 +8,7 @@ const FONT_OPTIONS = [
 ];
 
 const THEME_OPTIONS = [
-  { value: 'cream', label: 'Cream' },
+  { value: 'cream', label: 'Light' },
   { value: 'paper', label: 'Paper' },
   { value: 'dark', label: 'Dark' },
 ];
@@ -31,6 +31,7 @@ export function ReadingSettingsDialog({
       description="Changes apply immediately to textbook reading, source evidence, questions, and answer boxes."
       onClose={onClose}
       size="md"
+      className="mb-reading-settings"
       footer={
         <>
           <Button variant="secondary" size="sm" icon={RotateCcw} onClick={onReset}>
@@ -61,7 +62,7 @@ export function ReadingSettingsDialog({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-semibold text-[#20372D]">Reading font</span>
+            <span className="text-[14px] font-semibold text-[var(--mb-text)]">Reading font</span>
             <SegmentedControl
               label="Reading font"
               fullWidth
@@ -72,7 +73,7 @@ export function ReadingSettingsDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[14px] font-semibold text-[#20372D]">Reading theme</span>
+            <span className="text-[14px] font-semibold text-[var(--mb-text)]">Reading theme</span>
             <SegmentedControl
               label="Reading theme"
               fullWidth
@@ -166,11 +167,15 @@ export function ReadingSettingsDialog({
           )}
         </Field>
 
-        <div className="flex flex-col gap-2 pt-2 border-t border-[#C9D2C8]">
+        <label className="flex items-center gap-3 min-h-[44px] cursor-pointer text-[14px] font-medium">
+          <input type="checkbox" className="w-5 h-5 accent-[var(--mb-action)]" checked={Boolean(preferences.reduce_motion)} onChange={event => onChange({reduce_motion:event.target.checked})} />
+          <span>Reduce interface motion</span>
+        </label>
+        <div className="flex flex-col gap-2 pt-2 border-t border-[var(--mb-border-subtle)]">
           <label className="flex items-center gap-3 min-h-[44px] cursor-pointer text-[14px] font-medium">
             <input
               type="checkbox"
-              className="w-5 h-5 accent-[#204C43]"
+              className="w-5 h-5 accent-[var(--mb-action)]"
               checked={preferences.highlight_sentence}
               onChange={(event) => onChange({ highlight_sentence: event.target.checked })}
             />
@@ -179,7 +184,7 @@ export function ReadingSettingsDialog({
           <label className="flex items-center gap-3 min-h-[44px] cursor-pointer text-[14px] font-medium">
             <input
               type="checkbox"
-              className="w-5 h-5 accent-[#204C43]"
+              className="w-5 h-5 accent-[var(--mb-action)]"
               checked={preferences.auto_scroll}
               onChange={(event) => onChange({ auto_scroll: event.target.checked })}
             />

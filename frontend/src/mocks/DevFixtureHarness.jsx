@@ -6,11 +6,11 @@ import { FeedbackView } from '../components/understanding/FeedbackView';
 import { RetryView } from '../components/understanding/RetryView';
 import { LearningResults } from '../components/understanding/LearningResults';
 
-import readSuccess from '../../../docs/fixtures/read.success.json';
-import simplifyOmission from '../../../docs/fixtures/simplify.omission.json';
-import prepareSuccess from '../../../docs/fixtures/prepare.success.json';
-import checkMisconception from '../../../docs/fixtures/check.misconception.json';
-import retrySuccess from '../../../docs/fixtures/retry.independent-success.json';
+import readSuccess from '../test-data/read.success.json';
+import simplifyOmission from '../test-data/simplify.omission.json';
+import prepareSuccess from '../test-data/prepare.success.json';
+import checkMisconception from '../test-data/check.misconception.json';
+import retrySuccess from '../test-data/retry.independent-success.json';
 
 // Development-only isolated fixture harness for visual inspection of gated screens.
 // Excluded from production builds via import.meta.env.DEV guard in App.jsx.
@@ -30,7 +30,7 @@ export default function DevFixtureHarness() {
         <Notice tone="info" title="Isolated Development Fixture Harness">
           <p className="m-0">
             This dev-only route renders approved synthetic fixtures from{' '}
-            <code>docs/fixtures/</code> to inspect SourceLens, Misconception Repair, Independent
+            <code>src/test-data/</code> to inspect SourceLens, Misconception Repair, Independent
             Retry, and Learning Results when backend AI capabilities are off.
           </p>
         </Notice>

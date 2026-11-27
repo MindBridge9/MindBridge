@@ -24,6 +24,7 @@ export function PreferencesProvider({ children }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    root.dataset.reducedMotion = String(Boolean(preferences.reduce_motion));
     root.style.setProperty(
       '--mb-reading-font',
       FONT_FAMILY_VAR[preferences.font_family] || FONT_FAMILY_VAR.lexend

@@ -8,7 +8,7 @@ import {
   saveLearningSessionLocal,
   savePageLocal,
 } from '../lib/indexedDb';
-import readSuccess from '../../../docs/fixtures/read.success.json';
+import readSuccess from '../test-data/read.success.json';
 
 describe('IndexedDB local persistence safe fallback', () => {
   it('degrades gracefully without throwing when IndexedDB is unavailable in jsdom', async () => {

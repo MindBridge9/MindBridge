@@ -89,7 +89,7 @@ export function SpeechControls({
 
         <div className="flex items-center gap-3">
           {errorMessage ? (
-            <span role="status" className="text-[13px] font-medium text-[#A63D40]">
+            <span role="status" className="text-[13px] font-medium text-[var(--mb-error)]">
               {errorMessage}
             </span>
           ) : (

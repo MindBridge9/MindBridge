@@ -299,7 +299,7 @@ export function useSpeechQueue({
         : activeSentenceId.replace(/"/g, '\\"');
     const el = document.querySelector(`[data-sentence-id="${escaped}"]`);
     if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      el.scrollIntoView({ block: 'nearest', behavior: document.documentElement.dataset.reducedMotion === 'true' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     }
   }, [autoScroll, activeSentenceId]);
 

@@ -6,11 +6,11 @@ import { ReaderPage } from '../pages/ReaderPage';
 import { usePage } from '../context/PageContext';
 import { useEffect } from 'react';
 import * as api from '../lib/api';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
-import readSuccess from '../../../docs/fixtures/read.success.json';
-import simplifyOmission from '../../../docs/fixtures/simplify.omission.json';
-import simplifyNoTerms from '../../../docs/fixtures/simplify.no-terms.json';
-import defineSuccess from '../../../docs/fixtures/define.success.json';
+import healthInitial from '../test-data/health.initial.json';
+import readSuccess from '../test-data/read.success.json';
+import simplifyOmission from '../test-data/simplify.omission.json';
+import simplifyNoTerms from '../test-data/simplify.no-terms.json';
+import defineSuccess from '../test-data/define.success.json';
 
 function EnabledReader({ pageData }) {
   const { setActivePage } = usePage();
@@ -80,6 +80,7 @@ describe('Glossary, Simplify, and SourceLens', () => {
       ...readSuccess,
       page: {
         ...readSuccess.page,
+        key_terms: [{ term: 'water', chunk_ids: ['c0002'] }],
         chunks: [
           readSuccess.page.chunks[0],
           {
@@ -109,7 +110,7 @@ describe('Glossary, Simplify, and SourceLens', () => {
       </MemoryRouter>
     );
 
-    const simplifyBtn = await screen.findByRole('button', { name: /simplify selected section/i });
+    const simplifyBtn = await screen.findByRole('radio', { name: 'Simplified', exact: true });
     fireEvent.click(simplifyBtn);
 
     await waitFor(() => {
@@ -134,13 +135,13 @@ describe('Glossary, Simplify, and SourceLens', () => {
           }}
         >
           <Routes>
-            <Route path="/read/:pageId" element={<EnabledReader pageData={readSuccess} />} />
+            <Route path="/read/:pageId" element={<EnabledReader pageData={{ ...readSuccess, page: { ...readSuccess.page, key_terms_status: 'unavailable', key_terms: [] } }} />} />
           </Routes>
         </AppProviders>
       </MemoryRouter>
     );
 
-    const simplifyBtn = await screen.findByRole('button', { name: /simplify selected section/i });
+    const simplifyBtn = await screen.findByRole('radio', { name: 'Simplified', exact: true });
     fireEvent.click(simplifyBtn);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /open sourcelens/i })).toBeInTheDocument();

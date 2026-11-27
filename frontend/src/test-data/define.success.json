@@ -1,0 +1,13 @@
+{
+  "phrase": "glucose",
+  "language": "en",
+  "definition": "A type of sugar.",
+  "contextual_meaning": "The sugar plants make during photosynthesis.",
+  "example": null,
+  "source_refs": [
+    {
+      "chunk_id": "c0002",
+      "quote": "make glucose from carbon dioxide and water"
+    }
+  ]
+}

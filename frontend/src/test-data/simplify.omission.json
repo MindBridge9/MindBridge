@@ -1,0 +1,36 @@
+{
+  "page_id": "2b9fa570-b8dd-4e74-a827-3c50a8174e91",
+  "level": "easy",
+  "items": [
+    {
+      "chunk_id": "c0002",
+      "text": "The sample contains water.",
+      "source_refs": [
+        {
+          "chunk_id": "c0002",
+          "quote": "The sample contains 20 mL of water."
+        }
+      ],
+      "preserved_terms": [
+        "water"
+      ],
+      "warnings": [
+        {
+          "code": "missing_number",
+          "chunk_id": "c0002",
+          "source_value": "20",
+          "generated_value": null,
+          "message": "The number 20 is absent from the simplified text."
+        },
+        {
+          "code": "missing_unit",
+          "chunk_id": "c0002",
+          "source_value": "mL",
+          "generated_value": null,
+          "message": "The unit mL is absent from the simplified text."
+        }
+      ],
+      "terminology_check_status": "checked"
+    }
+  ]
+}

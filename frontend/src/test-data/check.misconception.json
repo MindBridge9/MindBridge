@@ -1,0 +1,72 @@
+{
+  "attempt": {
+    "id": "attempt-check-misconception",
+    "plan_id": "plan-1",
+    "question": {
+      "id": "question-1",
+      "text": "Explain how sunlight, carbon dioxide and water help plants make glucose.",
+      "criterion_ids": [
+        "energy",
+        "materials"
+      ]
+    },
+    "answer": "Plants get their food directly from sunlight.",
+    "assistance": {
+      "used": false,
+      "kinds": []
+    },
+    "submitted_at": "2026-11-24T12:05:00Z",
+    "feedback": {
+      "status": "evaluated",
+      "message": "Let us look at the ideas your explanation shows.",
+      "assessments": [
+        {
+          "criterion_id": "energy",
+          "status": "possible_misconception",
+          "explanation": "The answer may confuse the energy source with the food produced.",
+          "student_quote": "Plants get their food directly from sunlight.",
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "light energy from sunlight"
+            }
+          ]
+        },
+        {
+          "criterion_id": "materials",
+          "status": "missing",
+          "explanation": "This idea is not yet explained.",
+          "student_quote": null,
+          "source_refs": [
+            {
+              "chunk_id": "c0002",
+              "quote": "make glucose from carbon dioxide and water"
+            }
+          ]
+        }
+      ],
+      "uncertainty": null,
+      "targeted_explanation": {
+        "text": "Sunlight supplies energy. Plants use that energy to make glucose from carbon dioxide and water.",
+        "source_refs": [
+          {
+            "chunk_id": "c0002",
+            "quote": "Green plants use light energy from sunlight to make glucose from carbon dioxide and water during photosynthesis."
+          }
+        ]
+      },
+      "hint": "Separate the energy source from the materials.",
+      "follow_up_question": {
+        "id": "question-2",
+        "text": "What does sunlight provide, and which materials does a plant use to make glucose?",
+        "criterion_ids": [
+          "energy",
+          "materials"
+        ]
+      },
+      "recommendation": "try_retry",
+      "further_practice_useful": true
+    }
+  },
+  "retry_result": null
+}

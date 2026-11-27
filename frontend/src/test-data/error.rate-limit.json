@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Please wait before trying again.",
+    "retryable": true,
+    "request_id": "request-rate-limit",
+    "retry_after_seconds": 30,
+    "details": []
+  }
+}

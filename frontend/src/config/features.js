@@ -105,7 +105,7 @@ export function checkFeatureAvailability(
     return { available: false, reason: 'release_disabled' };
   }
 
-  if (healthStatus === 'pending' || healthStatus === 'idle' || !health) {
+  if (healthStatus !== 'success' || !health) {
     return {
       available: false,
       reason: healthStatus === 'error' ? 'health_unreachable' : 'health_unknown',
@@ -137,7 +137,7 @@ export function checkLearningAvailability({
   if (!releaseFlags?.prepare_understanding || !releaseFlags?.check_understanding) {
     return { available: false, reason: 'release_disabled' };
   }
-  if (healthStatus === 'pending' || healthStatus === 'idle' || !health) {
+  if (healthStatus !== 'success' || !health) {
     return {
       available: false,
       reason: healthStatus === 'error' ? 'health_unreachable' : 'health_unknown',

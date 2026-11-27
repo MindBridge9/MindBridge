@@ -1,0 +1,1166 @@
+{
+  "HealthResponse": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "const": "ok"
+      },
+      "service": {
+        "const": "mindbridge-api"
+      },
+      "api_version": {
+        "const": "1.0"
+      },
+      "capabilities": {
+        "type": "object",
+        "properties": {
+          "read": {
+            "type": "boolean"
+          },
+          "simplify": {
+            "type": "boolean"
+          },
+          "define": {
+            "type": "boolean"
+          },
+          "explain": {
+            "type": "boolean"
+          },
+          "prepare_understanding": {
+            "type": "boolean"
+          },
+          "check_understanding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "read",
+          "simplify",
+          "define",
+          "explain",
+          "prepare_understanding",
+          "check_understanding"
+        ],
+        "additionalProperties": false
+      },
+      "reading_levels": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ReadingLevel"
+        },
+        "minItems": 1,
+        "maxItems": 3
+      },
+      "explanation_languages": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "en"
+          ]
+        },
+        "minItems": 1,
+        "maxItems": 1
+      },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "max_image_bytes": {
+            "const": 8388608
+          },
+          "max_source_chars": {
+            "const": 12000
+          },
+          "max_answer_chars": {
+            "const": 2000
+          }
+        },
+        "required": [
+          "max_image_bytes",
+          "max_source_chars",
+          "max_answer_chars"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "status",
+      "service",
+      "api_version",
+      "capabilities",
+      "reading_levels",
+      "explanation_languages",
+      "limits"
+    ],
+    "additionalProperties": false
+  },
+  "ReadingLevel": {
+    "type": "string",
+    "enum": [
+      "original",
+      "easy",
+      "guided"
+    ]
+  },
+  "ReadResult": {
+    "type": "object",
+    "properties": {
+      "readability": {
+        "type": "string",
+        "enum": [
+          "readable",
+          "partial",
+          "unreadable"
+        ]
+      },
+      "retake_reasons": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "blur",
+            "glare",
+            "low_light",
+            "cropped_text",
+            "small_text",
+            "no_printed_text",
+            "unsupported_layout",
+            "unsupported_language"
+          ]
+        },
+        "minItems": 0,
+        "maxItems": 8
+      },
+      "page": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PageDoc"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "readability",
+      "retake_reasons",
+      "page"
+    ],
+    "additionalProperties": false
+  },
+  "PageDoc": {
+    "type": "object",
+    "properties": {
+      "schema_version": {
+        "const": "1.0"
+      },
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "format": "uuid"
+      },
+      "created_at": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 35,
+        "format": "date-time"
+      },
+      "language": {
+        "type": "string",
+        "enum": [
+          "en"
+        ]
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "title_origin": {
+        "type": "string",
+        "enum": [
+          "source",
+          "generated"
+        ]
+      },
+      "chunks": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TextChunk"
+        },
+        "minItems": 1,
+        "maxItems": 100
+      },
+      "extraction_warnings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ExtractionWarning"
+        },
+        "minItems": 0,
+        "maxItems": 30
+      },
+      "summary": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PageSummary"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "key_terms": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/KeyTerm"
+        },
+        "minItems": 0,
+        "maxItems": 24
+      },
+      "key_terms_status": {
+        "type": "string",
+        "enum": [
+          "available",
+          "unavailable"
+        ]
+      },
+      "glossary": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GlossaryEntry"
+        },
+        "minItems": 0,
+        "maxItems": 8
+      },
+      "enrichment_status": {
+        "type": "string",
+        "enum": [
+          "complete",
+          "partial",
+          "unavailable"
+        ]
+      }
+    },
+    "required": [
+      "schema_version",
+      "id",
+      "created_at",
+      "language",
+      "title",
+      "title_origin",
+      "chunks",
+      "extraction_warnings",
+      "summary",
+      "key_terms",
+      "key_terms_status",
+      "glossary",
+      "enrichment_status"
+    ],
+    "additionalProperties": false
+  },
+  "TextChunk": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 5,
+        "pattern": "^c[0-9]{4}$"
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "heading",
+          "paragraph",
+          "list_item",
+          "caption"
+        ]
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 3000
+      },
+      "quality": {
+        "type": "string",
+        "enum": [
+          "clear",
+          "uncertain"
+        ]
+      }
+    },
+    "required": [
+      "id",
+      "kind",
+      "text",
+      "quality"
+    ],
+    "additionalProperties": false
+  },
+  "ExtractionWarning": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "enum": [
+          "uncertain_text",
+          "reading_order",
+          "unsupported_region"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 400
+      },
+      "chunk_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5,
+          "pattern": "^c[0-9]{4}$"
+        },
+        "minItems": 0,
+        "maxItems": 100
+      }
+    },
+    "required": [
+      "code",
+      "message",
+      "chunk_ids"
+    ],
+    "additionalProperties": false
+  },
+  "PageSummary": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 800
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "text",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "SourceReference": {
+    "type": "object",
+    "properties": {
+      "chunk_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 5,
+        "pattern": "^c[0-9]{4}$"
+      },
+      "quote": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 3000
+      }
+    },
+    "required": [
+      "chunk_id",
+      "quote"
+    ],
+    "additionalProperties": false
+  },
+  "KeyTerm": {
+    "type": "object",
+    "properties": {
+      "term": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      },
+      "chunk_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5,
+          "pattern": "^c[0-9]{4}$"
+        },
+        "minItems": 1,
+        "maxItems": 100
+      }
+    },
+    "required": [
+      "term",
+      "chunk_ids"
+    ],
+    "additionalProperties": false
+  },
+  "GlossaryEntry": {
+    "type": "object",
+    "properties": {
+      "phrase": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      },
+      "language": {
+        "type": "string",
+        "enum": [
+          "en"
+        ]
+      },
+      "definition": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "contextual_meaning": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "example": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "phrase",
+      "language",
+      "definition",
+      "contextual_meaning",
+      "example",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "SimplificationResult": {
+    "type": "object",
+    "properties": {
+      "page_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "format": "uuid"
+      },
+      "level": {
+        "type": "string",
+        "enum": [
+          "easy",
+          "guided"
+        ]
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SimplifiedChunk"
+        },
+        "minItems": 1,
+        "maxItems": 3
+      }
+    },
+    "required": [
+      "page_id",
+      "level",
+      "items"
+    ],
+    "additionalProperties": false
+  },
+  "SimplifiedChunk": {
+    "type": "object",
+    "properties": {
+      "chunk_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 5,
+        "pattern": "^c[0-9]{4}$"
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4500
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      },
+      "preserved_terms": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "minItems": 0,
+        "maxItems": 24
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OmissionWarning"
+        },
+        "minItems": 0,
+        "maxItems": 30
+      },
+      "terminology_check_status": {
+        "type": "string",
+        "enum": [
+          "checked",
+          "unavailable"
+        ]
+      }
+    },
+    "required": [
+      "chunk_id",
+      "text",
+      "source_refs",
+      "preserved_terms",
+      "warnings",
+      "terminology_check_status"
+    ],
+    "additionalProperties": false
+  },
+  "OmissionWarning": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "enum": [
+          "missing_number",
+          "changed_number",
+          "missing_unit",
+          "missing_date",
+          "missing_name",
+          "missing_term",
+          "missing_key_detail"
+        ]
+      },
+      "chunk_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 5,
+        "pattern": "^c[0-9]{4}$"
+      },
+      "source_value": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "generated_value": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 400
+      }
+    },
+    "required": [
+      "code",
+      "chunk_id",
+      "source_value",
+      "generated_value",
+      "message"
+    ],
+    "additionalProperties": false
+  },
+  "ConceptExplanation": {
+    "type": "object",
+    "properties": {
+      "page_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "format": "uuid"
+      },
+      "concept": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "language": {
+        "type": "string",
+        "enum": [
+          "en"
+        ]
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1500
+      },
+      "important_terms": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "minItems": 0,
+        "maxItems": 12
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "page_id",
+      "concept",
+      "language",
+      "text",
+      "important_terms",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "LearningPlan": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "page_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 36,
+        "format": "uuid"
+      },
+      "chunk_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 5,
+        "pattern": "^c[0-9]{4}$"
+      },
+      "target_concept": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "objective": {
+        "$ref": "#/components/schemas/LearningObjective"
+      },
+      "initial_question": {
+        "$ref": "#/components/schemas/ComprehensionQuestion"
+      }
+    },
+    "required": [
+      "id",
+      "page_id",
+      "chunk_id",
+      "target_concept",
+      "objective",
+      "initial_question"
+    ],
+    "additionalProperties": false
+  },
+  "LearningObjective": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "criteria": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RubricCriterion"
+        },
+        "minItems": 2,
+        "maxItems": 4
+      }
+    },
+    "required": [
+      "id",
+      "description",
+      "criteria"
+    ],
+    "additionalProperties": false
+  },
+  "RubricCriterion": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 400
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "id",
+      "description",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "ComprehensionQuestion": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "criterion_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+        },
+        "minItems": 1,
+        "maxItems": 4
+      }
+    },
+    "required": [
+      "id",
+      "text",
+      "criterion_ids"
+    ],
+    "additionalProperties": false
+  },
+  "EvaluationResult": {
+    "type": "object",
+    "properties": {
+      "attempt": {
+        "$ref": "#/components/schemas/LearningAttempt"
+      },
+      "retry_result": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/RetryResult"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "attempt",
+      "retry_result"
+    ],
+    "additionalProperties": false
+  },
+  "LearningAttempt": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "plan_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "question": {
+        "$ref": "#/components/schemas/ComprehensionQuestion"
+      },
+      "answer": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      "assistance": {
+        "$ref": "#/components/schemas/AssistanceRecord"
+      },
+      "submitted_at": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 35,
+        "format": "date-time"
+      },
+      "feedback": {
+        "$ref": "#/components/schemas/ComprehensionFeedback"
+      }
+    },
+    "required": [
+      "id",
+      "plan_id",
+      "question",
+      "answer",
+      "assistance",
+      "submitted_at",
+      "feedback"
+    ],
+    "additionalProperties": false
+  },
+  "AssistanceRecord": {
+    "type": "object",
+    "properties": {
+      "used": {
+        "type": "boolean"
+      },
+      "kinds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "hint",
+            "source",
+            "explanation",
+            "previous_feedback"
+          ]
+        },
+        "minItems": 0,
+        "maxItems": 4
+      }
+    },
+    "required": [
+      "used",
+      "kinds"
+    ],
+    "additionalProperties": false
+  },
+  "ComprehensionFeedback": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "evaluated",
+          "uncertain"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 800
+      },
+      "assessments": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CriterionAssessment"
+        },
+        "minItems": 2,
+        "maxItems": 4
+      },
+      "uncertainty": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/EvaluationUncertainty"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "targeted_explanation": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GeneratedText"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "hint": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "follow_up_question": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ComprehensionQuestion"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "recommendation": {
+        "type": "string",
+        "enum": [
+          "try_retry",
+          "clarify_answer",
+          "review_source",
+          "seek_help",
+          "read_original"
+        ]
+      },
+      "further_practice_useful": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "status",
+      "message",
+      "assessments",
+      "uncertainty",
+      "targeted_explanation",
+      "hint",
+      "follow_up_question",
+      "recommendation",
+      "further_practice_useful"
+    ],
+    "additionalProperties": false
+  },
+  "CriterionAssessment": {
+    "type": "object",
+    "properties": {
+      "criterion_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "demonstrated",
+          "missing",
+          "possible_misconception",
+          "unclear",
+          "not_tested"
+        ]
+      },
+      "explanation": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "student_quote": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "criterion_id",
+      "status",
+      "explanation",
+      "student_quote",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "EvaluationUncertainty": {
+    "type": "object",
+    "properties": {
+      "reason": {
+        "type": "string",
+        "enum": [
+          "ambiguous_answer",
+          "insufficient_source",
+          "unsupported_claim",
+          "evaluation_uncertain"
+        ]
+      },
+      "message": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "required": [
+      "reason",
+      "message"
+    ],
+    "additionalProperties": false
+  },
+  "GeneratedText": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1500
+      },
+      "source_refs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SourceReference"
+        },
+        "minItems": 1,
+        "maxItems": 12
+      }
+    },
+    "required": [
+      "text",
+      "source_refs"
+    ],
+    "additionalProperties": false
+  },
+  "RetryResult": {
+    "type": "object",
+    "properties": {
+      "previous_attempt_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "current_attempt_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "independent_in_app": {
+        "type": "boolean"
+      },
+      "newly_demonstrated_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+        },
+        "minItems": 0,
+        "maxItems": 4
+      },
+      "retained_demonstrated_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+        },
+        "minItems": 0,
+        "maxItems": 4
+      },
+      "still_needs_practice_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+        },
+        "minItems": 0,
+        "maxItems": 4
+      },
+      "not_retested_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+        },
+        "minItems": 0,
+        "maxItems": 4
+      }
+    },
+    "required": [
+      "previous_attempt_id",
+      "current_attempt_id",
+      "independent_in_app",
+      "newly_demonstrated_ids",
+      "retained_demonstrated_ids",
+      "still_needs_practice_ids",
+      "not_retested_ids"
+    ],
+    "additionalProperties": false
+  }
+}

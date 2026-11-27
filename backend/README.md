@@ -922,7 +922,8 @@ changes, provider-model changes, frontend changes or deployment were performed.
 `/api/health` now evaluates `Settings` without making external provider calls:
 
 - When `AI_ENABLED=false` or credentials for the selected `AI_PROVIDER` (`groq` or `gemini`) are missing, all six capabilities report `false` and `reading_levels` is `["original"]`.
-- When `AI_ENABLED=true` and the selected provider has valid credentials, `read`, `simplify`, `define`, `explain`, and `prepare_understanding` report `true`, and `reading_levels` is `["original", "easy"]` (`guided` remains unimplemented / `501`).
+- Credentials alone leave capabilities off. `APPROVED_CAPABILITIES` is an explicit comma-separated readiness allowlist (`read,simplify,define,explain,prepare_understanding`), to be set only after feature review. `easy` is advertised only when simplification is approved. An empty allowlist is the safe default.
+- For explicit synthetic/nonpersonal development integration, `MINDBRIDGE_ENV=development SYNTHETIC_DEVELOPMENT_INTEGRATION=true` exposes implemented endpoints, including the learning loop, for verification. This setting is rejected in production. It is not semantic acceptance, provider uptime, or student-release evidence.
 - `check_understanding` remains `false` until its live semantic-quality acceptance gate is resolved.
 
 ### 1. Create `backend/.env` safely (without overwriting an existing file)
@@ -944,6 +945,7 @@ Edit `backend/.env` locally (never commit it) and set:
 - `AI_ENABLED=true`
 - `AI_PROVIDER=groq` with `GROQ_API_KEY=...` (or `AI_PROVIDER=gemini` with `GEMINI_API_KEY=...`)
 - `CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`
+- For synthetic local development only: `SYNTHETIC_DEVELOPMENT_INTEGRATION=true`. Leave it false in production.
 
 ### 2. Start the FastAPI backend
 
@@ -968,4 +970,4 @@ npm run dev
 curl.exe http://127.0.0.1:8000/api/health
 ```
 
-Confirm `capabilities.read` and `capabilities.simplify` are `true` (and `check_understanding` is `false`), then open `http://localhost:5173/scan`, upload one clear English textbook photograph, open the extracted page in the Reader, and trigger **Simplify selected section** on a clear paragraph.
+After reviewed capability configuration (or explicit synthetic development integration), confirm the intended health capabilities, then open `http://localhost:5173/scan`, upload one clear English textbook photograph, open the extracted page in the Reader, and trigger **Simplify selected section** on a clear paragraph.

@@ -1,14 +1,16 @@
+import { motion } from 'motion/react';
+import { useMotionPolicy } from '../motion/MotionSystem';
 import { Loader2 } from 'lucide-react';
 
 const VARIANT_CLASSES = {
   primary:
-    'bg-[#204C43] text-white border border-[#204C43] hover:bg-[#193C35] active:bg-[#14302A] disabled:opacity-50',
+    'bg-[var(--mb-action)] text-white border border-[var(--mb-action)] hover:bg-[var(--mb-action-hover)] active:bg-[var(--mb-action-hover)] disabled:opacity-50',
   secondary:
-    'mb-theme-btn-secondary bg-white text-[#20372D] border border-[#8B9B91] hover:bg-[#DCE9DF]/65 active:bg-[#DCE9DF] disabled:opacity-50',
+    'mb-theme-btn-secondary bg-[var(--mb-surface)] text-[var(--mb-text)] border border-[var(--mb-border)] hover:bg-[var(--mb-support)]/65 active:bg-[var(--mb-support)] disabled:opacity-50',
   quiet:
-    'mb-theme-btn-quiet bg-transparent text-[#20372D] border border-transparent hover:bg-[#DCE9DF]/65 active:bg-[#DCE9DF] disabled:opacity-50',
+    'mb-theme-btn-quiet bg-transparent text-[var(--mb-text)] border border-transparent hover:bg-[var(--mb-support)]/65 active:bg-[var(--mb-support)] disabled:opacity-50',
   destructive:
-    'bg-[#A63D40] text-white border border-[#A63D40] hover:bg-[#8E3235] active:bg-[#7A2A2D] disabled:opacity-50',
+    'bg-[var(--mb-error)] text-white border border-[var(--mb-error)] hover:bg-[var(--mb-error)] active:bg-[var(--mb-error)] disabled:opacity-50',
 };
 
 const SIZE_CLASSES = {
@@ -29,13 +31,18 @@ export function Button({
   ...props
 }) {
   const isDisabled = disabled || loading;
+  const {instant}=useMotionPolicy();
 
   return (
-    <button
+    <motion.button
+      whileHover={instant || isDisabled ? undefined : {scale:1.015}}
+      whileTap={instant || isDisabled ? undefined : {scale:.97}}
+      transition={{type:"spring",duration:.18,bounce:0}}
+      data-variant={variant}
       type={type}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      className={`inline-flex items-center justify-center gap-2 rounded-[6px] font-semibold transition-colors duration-150 active:translate-y-[0.5px] disabled:active:translate-y-0 cursor-pointer disabled:cursor-not-allowed ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.primary} ${SIZE_CLASSES[size] || SIZE_CLASSES.md} ${className}`}
+      className={`mb-button inline-flex items-center justify-center gap-2 rounded-[8px] font-semibold cursor-pointer disabled:cursor-not-allowed ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.primary} ${SIZE_CLASSES[size] || SIZE_CLASSES.md} ${className}`}
       {...props}
     >
       {loading ? (
@@ -44,6 +51,6 @@ export function Button({
         <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
       ) : null}
       <span>{children}</span>
-    </button>
+    </motion.button>
   );
 }

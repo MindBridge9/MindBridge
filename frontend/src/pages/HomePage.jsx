@@ -1,180 +1,49 @@
+import { motion } from 'motion/react';
+import { useMotionPolicy } from '../components/motion/MotionSystem';
+import { ContextDemo } from '../components/home/ContextDemo';
 import { useState } from 'react';
+import { ScrollProgress, StoryReveal, JourneyFlow, storyParts } from '../components/home/ScrollStory';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, Camera, RefreshCw, Trash2, WifiOff } from 'lucide-react';
+import { ArrowRight, BookOpen, Camera, RefreshCw, Trash2, WifiOff, ScanLine, SlidersHorizontal, Link2, MessageCircle, Waypoints, RotateCcw, ShieldCheck, Volume2, Type } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/common';
+import { ProductPreview } from '../components/home/ProductPreview';
+import { RepairDemo } from '../components/home/RepairDemo';
 import { useApi } from '../context/ApiContext';
 import { usePage } from '../context/PageContext';
 import { PREPROCESSED_SAMPLE_PAGE } from '../data/preprocessedSample';
-
-const JOURNEY_STEPS = [
-  { step: 'Scan', detail: 'Capture one printed page' },
-  { step: 'Reshape', detail: 'Adjust font, spacing & speech' },
-  { step: 'Understand', detail: 'Inspect SourceLens & terms' },
-  { step: 'Explain', detail: 'Answer in your own words' },
-  { step: 'Repair', detail: 'Fix misconceptions from source' },
-  { step: 'Retry', detail: 'Try a fresh follow-up question' },
-  { step: 'Independent Reading', detail: 'Return to original wording' },
+const JOURNEY = [
+ {name:'Scan',icon:ScanLine,detail:'Capture a page.'},
+ {name:'Read',icon:BookOpen,detail:'Make it clearer.'},
+ {name:'Practice',icon:MessageCircle,detail:'Test your understanding.'},
+ {name:'Repair',icon:Waypoints,detail:'Fix misunderstandings.'},
+ {name:'Retry',icon:RotateCcw,detail:'Try a new question.'},
 ];
-
-export function HomePage({
-  savedPages = [],
-  onOpenSavedPage = null,
-  onDeleteSavedPage = null,
-  onClearAllSavedData = null,
-}) {
-  const navigate = useNavigate();
-  const { health, healthStatus, refreshHealth } = useApi();
-  const { page: activePage, setActivePage } = usePage();
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
-
-  const handleOpenSample = () => {
-    setActivePage(PREPROCESSED_SAMPLE_PAGE, null, {
-      readability: 'readable',
-      retakeReasons: [],
-      origin: 'sample',
-    });
-    navigate(`/read/${PREPROCESSED_SAMPLE_PAGE.id}`);
-  };
-
-  const anyBackendAiEnabled = Boolean(
-    health?.capabilities && Object.values(health.capabilities).some(Boolean)
-  );
-
-  return (
-    <AppShell>
-      <div className="mb-shell-container py-8 sm:py-12 flex flex-col gap-12">
-        {/* Hero: Editorial learning thesis + illustrative loop spread */}
-        <section
-          aria-labelledby="home-heading"
-          className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start"
-        >
-          <div className="lg:col-span-6 flex flex-col gap-5">
-            <h1
-              id="home-heading"
-              className="text-[34px] sm:text-[44px] font-extrabold tracking-[-0.025em] leading-[1.1] m-0 text-[#20372D]"
-            >
-              Every page understood. Not just read.
-            </h1>
-            <p className="text-[17px] leading-[1.65] text-[#3F584D] max-w-[54ch] m-0">
-              MindBridge turns a photographed textbook page into an accessible reader, links every
-              simplified idea back to the original wording, repairs misconceptions in your own
-              explanation, and guides you back to independent reading.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Button
-                variant="primary"
-                size="lg"
-                icon={Camera}
-                onClick={() => navigate('/scan')}
-              >
-                Scan or upload a page
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                icon={BookOpen}
-                onClick={handleOpenSample}
-              >
-                Try preprocessed sample
-              </Button>
-            </div>
-
-            <p className="text-[13px] text-[#3F584D] m-0">
-              Built for Classes 6–10 students, second-language learners, and anyone who benefits from
-              configurable reading support. No account required.
-            </p>
-
-            {/* Compact, honest server connectivity strip */}
-            <div className="pt-2 border-t border-[#C9D2C8] flex flex-wrap items-center justify-between gap-2 text-[13px]">
-              {healthStatus === 'pending' ? (
-                <span className="text-[#3F584D]" role="status">
-                  Checking MindBridge server status…
-                </span>
-              ) : healthStatus === 'error' ? (
-                <>
-                  <span className="inline-flex items-center gap-2 text-[#9A601C] font-medium" role="status">
-                    <WifiOff className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    Server offline — local sample reading &amp; settings remain available.
-                  </span>
-                  <Button variant="quiet" size="sm" icon={RefreshCw} onClick={refreshHealth}>
-                    Retry connection
-                  </Button>
-                </>
-              ) : health ? (
-                <span className="text-[#3F584D]">
-                  Server connected (API {health.api_version}) ·{' '}
-                  {anyBackendAiEnabled
-                    ? 'Live AI capabilities active'
-                    : 'Live AI capabilities disabled by server configuration'}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Illustrative learning loop notebook spread (flat editorial structure, no nested cards) */}
-          <aside
-            aria-label="Illustrative MindBridge learning loop"
-            className="lg:col-span-6 rounded-[12px] border border-[#8B9B91] bg-white overflow-hidden"
-          >
-            <div className="px-5 py-3.5 bg-[#EFECE0]/70 border-b border-[#C9D2C8] flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-[15px] font-bold m-0 text-[#20372D]">
-                How MindBridge guides understanding
-              </h2>
-              <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-[4px] bg-white border border-[#C9D2C8] text-[#3F584D]">
-                Illustrative example
-              </span>
-            </div>
-
-            <div className="divide-y divide-[#C9D2C8]">
-              <div className="p-5 flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D]">
-                  1. Original textbook passage · c0002
-                </span>
-                <p className="font-[var(--mb-font-reading-lexend)] text-[17px] leading-[1.65] text-[#20372D] m-0">
-                  “Green plants use light energy from sunlight to make glucose from carbon dioxide
-                  and water during photosynthesis.”
-                </p>
-              </div>
-
-              <div className="p-5 bg-[#FDF3E1]/45 flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#9A601C]">
-                  2. Student explanation &amp; misconception repair
-                </span>
-                <p className="text-[15px] font-semibold text-[#20372D] m-0">
-                  “Plants get their food directly from sunlight.”
-                </p>
-                <p className="text-[14px] text-[#9A601C] m-0">
-                  Possible misconception: confuses the energy source with the glucose produced.
-                </p>
-              </div>
-
-              <div className="p-5 bg-[#E6F1EA]/55 flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#204C43]">
-                  3. Grounded repair &amp; fresh retry question
-                </span>
-                <p className="text-[14px] text-[#20372D] m-0 leading-relaxed">
-                  “Sunlight supplies energy. Plants use that energy to make glucose from carbon
-                  dioxide and water.” Answer a fresh question, compare concepts, and return to the
-                  original text.
-                </p>
-              </div>
-            </div>
-          </aside>
-        </section>
-
+export function HomePage({savedPages=[],onOpenSavedPage=null,onDeleteSavedPage=null,onClearAllSavedData=null}) {
+ const navigate=useNavigate();
+ const {instant}=useMotionPolicy();
+ const canObserve=typeof IntersectionObserver!=='undefined';
+ const {health,healthStatus,refreshHealth}=useApi();
+ const {page:activePage,setActivePage}=usePage();
+ const [confirmClearAll,setConfirmClearAll]=useState(false);
+ const handleOpenSample=()=>{
+  if(activePage&&activePage.id!==PREPROCESSED_SAMPLE_PAGE.id&&!window.confirm('Replace your open page and unfinished practice with the preprocessed sample?'))return;
+  setActivePage(PREPROCESSED_SAMPLE_PAGE,null,{readability:'readable',retakeReasons:[],origin:'sample'});
+  navigate(`/read/${PREPROCESSED_SAMPLE_PAGE.id}`);
+ };
+ return <AppShell><div className="mb-home mb-creative-home"><ScrollProgress />
+  <div className="mb-shell-container mb-session-entry">
         {/* Continue Learning / Active & Saved Pages */}
         {(activePage || savedPages.length > 0) && (
           <section aria-labelledby="continue-heading" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="continue-heading" className="text-[22px] font-bold m-0 text-[#20372D]">
+              <h2 id="continue-heading" className="text-[22px] font-bold m-0 text-[var(--mb-text)]">
                 Continue learning
               </h2>
               {savedPages.length > 0 && onClearAllSavedData ? (
                 confirmClearAll ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[13px] font-medium text-[#A63D40]">
+                    <span className="text-[13px] font-medium text-[var(--mb-error)]">
                       Remove all saved pages and learning sessions from this browser?
                     </span>
                     <Button
@@ -210,15 +79,15 @@ export function HomePage({
 
             <div className="flex flex-col gap-3">
               {activePage ? (
-                <div className="rounded-[12px] border border-[#204C43] bg-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+                <div className="rounded-[12px] border border-[var(--mb-action)] bg-[var(--mb-surface)] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#204C43] m-0 mb-1">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-accent)] m-0 mb-1">
                       Open in this session
                     </p>
-                    <h3 className="text-[18px] font-bold m-0 text-[#20372D] truncate">
+                    <h3 className="text-[18px] font-bold m-0 text-[var(--mb-text)] truncate">
                       {activePage.title}
                     </h3>
-                    <p className="text-[14px] text-[#3F584D] m-0 mt-1">
+                    <p className="text-[14px] text-[var(--mb-text-muted)] m-0 mt-1">
                       {activePage.chunks.length} sections ·{' '}
                       <span className="capitalize">{activePage.language}</span>
                     </p>
@@ -236,20 +105,20 @@ export function HomePage({
               {savedPages.map((entry) => (
                 <div
                   key={entry.page.id}
-                  className="rounded-[12px] border border-[#8B9B91] bg-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4"
+                  className="rounded-[12px] border border-[var(--mb-border)] bg-[var(--mb-surface)] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4"
                 >
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D] m-0 mb-1">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-text-muted)] m-0 mb-1">
                       Saved on this device ·{' '}
                       {new Date(entry.saved_at).toLocaleDateString(undefined, {
                         month: 'short',
                         day: 'numeric',
                       })}
                     </p>
-                    <h3 className="text-[18px] font-bold m-0 text-[#20372D] truncate">
+                    <h3 className="text-[18px] font-bold m-0 text-[var(--mb-text)] truncate">
                       {entry.page.title}
                     </h3>
-                    <p className="text-[14px] text-[#3F584D] m-0 mt-1">
+                    <p className="text-[14px] text-[var(--mb-text-muted)] m-0 mt-1">
                       {entry.page.chunks.length} sections
                       {entry.learningSession
                         ? ` · ${entry.learningSession.attempts?.length || 0} saved attempt(s)`
@@ -281,67 +150,31 @@ export function HomePage({
           </section>
         )}
 
-        {/* Journey sequence & core capabilities */}
-        <section aria-labelledby="journey-heading" className="flex flex-col gap-6 border-t border-[#C9D2C8] pt-8">
-          <div className="flex flex-col gap-1.5">
-            <h2 id="journey-heading" className="text-[22px] font-bold m-0 text-[#20372D]">
-              The learning journey
-            </h2>
-            <p className="text-[15px] text-[#3F584D] m-0">
-              Your reading settings stay intact at every stage, and original textbook wording is
-              never overwritten.
-            </p>
-          </div>
-
-          <ol className="list-none p-0 m-0 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-            {JOURNEY_STEPS.map((item, index) => (
-              <li
-                key={item.step}
-                className="rounded-[8px] border border-[#C9D2C8] bg-white px-3 py-2.5 flex flex-col gap-0.5"
-              >
-                <span className="mb-tabular text-[11px] font-bold text-[#204C43]">
-                  Step {index + 1}
-                </span>
-                <span className="text-[14px] font-bold text-[#20372D]">{item.step}</span>
-                <span className="text-[12px] text-[#3F584D] leading-snug">{item.detail}</span>
-              </li>
-            ))}
-          </ol>
-
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5 pt-2 m-0">
-            <div>
-              <dt className="text-[16px] font-bold text-[#20372D]">SourceLens</dt>
-              <dd className="text-[14px] text-[#3F584D] m-0 mt-1 leading-relaxed">
-                Compare any simplified section side-by-side with exact original textbook quotations
-                and your captured page photo.
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[16px] font-bold text-[#20372D]">FactGuard checks</dt>
-              <dd className="text-[14px] text-[#3F584D] m-0 mt-1 leading-relaxed">
-                Flags possible omissions or changes to numbers, units, dates, and key terms in
-                simplified passages so you can verify against the original.
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[16px] font-bold text-[#20372D]">
-                Misconception Repair &amp; Independent Retry
-              </dt>
-              <dd className="text-[14px] text-[#3F584D] m-0 mt-1 leading-relaxed">
-                Evaluates meaning rather than spelling, explains what was missed with source
-                evidence, and offers a fresh follow-up question with transparent assistance tracking.
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[16px] font-bold text-[#20372D]">Accessible reading tools</dt>
-              <dd className="text-[14px] text-[#3F584D] m-0 mt-1 leading-relaxed">
-                Adjust font, spacing, reading width, and Cream/Paper/Dark themes, listen
-                sentence-by-sentence with highlighting, and look up terms in context.
-              </dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-    </AppShell>
-  );
+  </div>
+  <section className="mb-shell-container mb-hero" aria-labelledby="home-heading">
+   <div className="mb-hero-composition"><motion.div className="mb-hero-heading" initial={instant?false:{y:44}} animate={{y:0}} transition={{duration:instant?0:.55,ease:[.23,1,.32,1]}}><h1 id="home-heading">Every page understood.<br /><span>Not just read.</span></h1><div className="mb-hero-intro"><p>Read a clearer version. Trace it to the source. Explain it in your own words.</p><div className="mb-hero-actions"><Button size="lg" icon={ScanLine} onClick={()=>navigate('/scan')}>Scan or upload a page</Button><Button variant="secondary" size="lg" icon={ArrowRight} onClick={handleOpenSample}>Try a sample</Button></div></div></motion.div>
+   <ProductPreview />
+   </div>
+   <div className="mb-connectivity mb-connectivity-compact" role="status">
+    {healthStatus==='pending'?<span>Connecting…</span>:healthStatus==='error'?<><span><WifiOff size={14} aria-hidden="true" />Server unreachable · sample available</span><Button variant="quiet" size="sm" icon={RefreshCw} onClick={refreshHealth}>Retry connection</Button></>:health?<span title={`API ${health.api_version}. New AI actions depend on server capabilities and release approval.`}><span className="mb-status-dot" />Server connected</span>:null}
+   </div>
+  </section>
+  <div className="mb-shell-container mb-home-body">
+   <section id="how-it-works" className="mb-journey-section" data-story-reveal aria-labelledby="journey-heading">
+    <div className="mb-section-heading"><h2 id="journey-heading">From reading to understanding.</h2></div>
+    <JourneyFlow stages={JOURNEY} />
+   </section>
+   <StoryReveal id="learning" className="mb-repair-section" data-story-reveal aria-labelledby="repair-title">
+    <motion.div variants={storyParts.copy} className="mb-feature-story"><h2 id="repair-title">Find the missing link.<br /><span>Then try again.</span></h2><p>Find the misunderstanding, revisit the source, then try a different question about the same idea.</p></motion.div>
+    <RepairDemo />
+   </StoryReveal>
+   <StoryReveal className="mb-reading-feature" data-story-reveal aria-labelledby="comfort-title">
+    <motion.div variants={storyParts.visual} className="mb-type-specimen" aria-label="Illustrative reading preferences"><div><Type size={22} aria-hidden="true" /><Volume2 size={20} aria-hidden="true" /></div><p>Big ideas.<br /><span>A little more space.</span><br />Your kind of clarity.</p><div className="mb-type-ruler" aria-hidden="true"><span>Aa</span><span>Aa</span><span>Aa</span><span>Aa</span></div></motion.div>
+    <motion.div variants={storyParts.copy} className="mb-feature-story"><h2 id="comfort-title">Make room for<br />your way of reading.</h2><p>Adjust type, spacing, width, and theme across your learning tools. Read aloud with your browser’s available voices.</p><Button variant="secondary" icon={SlidersHorizontal} onClick={handleOpenSample}>Explore the accessible reader</Button></motion.div>
+   </StoryReveal>
+   <ContextDemo />
+   <StoryReveal className="mb-factguard" data-story-reveal aria-labelledby="factguard-title"><ShieldCheck size={30} aria-hidden="true" /><motion.div variants={storyParts.copy}><h2 id="factguard-title">Clarity should keep the details.</h2><p>FactGuard flags possible missing or changed numbers, units, dates, and supplied terminology.</p><p className="mb-factguard-limit">It cannot check every change in meaning. No warnings does not guarantee accuracy.</p></motion.div><motion.div variants={storyParts.visual} className="mb-detail-comparison" aria-label="Illustrative detail comparison"><span>Illustrative detail comparison</span><dl><div><dt>Original detail</dt><dd>20 <span>mL</span></dd></div><div><dt>Detail to compare</dt><dd>20 <span>mL</span></dd></div></dl></motion.div></StoryReveal>
+   <StoryReveal className="mb-final-cta" aria-labelledby="start-heading"><motion.div variants={storyParts.copy}><h2 id="start-heading">Start with one page.<br />See where it takes you.</h2><p>English printed textbook pages. A reading experience that puts understanding first.</p></motion.div><Button size="lg" icon={ArrowRight} onClick={()=>navigate('/scan')}>Bring your page</Button></StoryReveal>
+  </div>
+ </div></AppShell>;
 }

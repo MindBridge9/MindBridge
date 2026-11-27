@@ -1,3 +1,4 @@
+import { StageSurface } from '../components/motion/MotionSystem';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, RefreshCw } from 'lucide-react';
@@ -35,7 +36,7 @@ export function LearningPage({ onSaveSession = null }) {
   const navigate = useNavigate();
   const { page, sourceOrigin, learningSession, setLearningSession } = usePage();
   const { preferences, storageWarning, updatePreferences, resetPreferences } = usePreferences();
-  const { getFeatureState } = useApi();
+  const { getFeatureState, healthStatus, refreshHealth } = useApi();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
@@ -103,16 +104,19 @@ export function LearningPage({ onSaveSession = null }) {
     prepare,
   ]);
 
+
+
   if (!isValidTarget) {
     return (
       <MissingPage
         title="Learning section unavailable"
-        description="This textbook section could not be found in your active session or has uncertain OCR quality. Open or scan a textbook page to choose a clear paragraph."
+        description="This textbook section could not be found in your active session or has uncertain extracted text. Open or scan a textbook page to choose a clear paragraph."
       />
     );
   }
 
   const returnToReader = () => {
+    sessionCtrl.requestHelp('source');
     speech.stop();
     navigate(`/read/${page.id}`);
   };
@@ -126,6 +130,7 @@ export function LearningPage({ onSaveSession = null }) {
   const sourceChunks = [selectedChunk];
   const activeStageKey = resolveStageKey(state.stage);
 
+
   return (
     <AppShell
       readingTheme={preferences.theme}
@@ -136,23 +141,23 @@ export function LearningPage({ onSaveSession = null }) {
         </Button>
       }
     >
-      <div className="mb-shell-container py-6 sm:py-8 max-w-[840px] flex flex-col gap-6">
+      <StageSurface stage={activeStageKey} data-learning-stage={activeStageKey} className="mb-shell-container mb-learning-container py-6 sm:py-8 flex flex-col gap-6">
         <header className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <h1 className="text-[26px] sm:text-[32px] font-extrabold tracking-[-0.02em] m-0">
               Check your understanding
             </h1>
             <p className="mb-theme-muted text-[15px] m-0">
-              {page.title} · Section <span className="font-mono">{selectedChunk.id}</span>
+              {page.title} · Section {page.chunks.filter(c => c.kind !== 'heading').findIndex(c => c.id === selectedChunk.id) + 1}
               {state.plan?.target_concept ? ` · ${state.plan.target_concept}` : ''}
             </p>
           </div>
 
           <ol
             aria-label="Learning stages"
-            className="list-none p-0 m-0 grid grid-cols-4 gap-2 text-[12px] sm:text-[13px]"
+            className="mb-learning-stages"
           >
-            {LEARNING_STAGES.map((item) => {
+            {LEARNING_STAGES.map((item, index) => {
               const isCurrent = item.key === activeStageKey;
               return (
                 <li
@@ -160,11 +165,11 @@ export function LearningPage({ onSaveSession = null }) {
                   aria-current={isCurrent ? 'step' : undefined}
                   className={`rounded-[6px] border px-2.5 py-2 text-center font-semibold ${
                     isCurrent
-                      ? 'bg-[#204C43] text-white border-[#204C43]'
-                      : 'mb-theme-chip border-[#C9D2C8]'
+                      ? 'bg-[var(--mb-action)] text-white border-[var(--mb-action)]'
+                      : 'mb-theme-chip border-[var(--mb-border-subtle)]'
                   }`}
                 >
-                  {item.label}
+                  <span className="mb-stage-number" aria-hidden="true">{index + 1}</span><span>{item.label.slice(3)}</span>
                 </li>
               );
             })}
@@ -174,7 +179,7 @@ export function LearningPage({ onSaveSession = null }) {
             <label className="inline-flex items-center gap-2.5 text-[13px] cursor-pointer self-start min-h-[36px]">
               <input
                 type="checkbox"
-                className="w-4 h-4 accent-[#204C43]"
+                className="w-4 h-4 accent-[var(--mb-action)]"
                 checked={saveLocally}
                 onChange={(event) => {
                   const next = event.target.checked;
@@ -207,6 +212,7 @@ export function LearningPage({ onSaveSession = null }) {
               </Button>
             }
           >
+            <Button variant="secondary" size="sm" loading={healthStatus === 'pending'} onClick={refreshHealth}>Recheck connection</Button>
             <p className="m-0">
               {sourceOrigin === 'sample'
                 ? 'Comprehension evaluation requires a live scanned textbook page.'
@@ -242,12 +248,14 @@ export function LearningPage({ onSaveSession = null }) {
           </Notice>
         ) : null}
 
-        {learningAvailability.available && sourceOrigin !== 'sample' ? (
+        {(learningAvailability.available || state.plan) && sourceOrigin !== 'sample' ? (
           <>
             {state.stage === 'preparing' ? (
               <LoadingStatus
                 message="Preparing a source-grounded question…"
-                detail="Building a 2–4 idea rubric from the selected textbook paragraph."
+                detail="Finding a clear concept in your selected passage."
+                onCancel={sessionCtrl.cancelPrepare}
+                cancelLabel="Cancel waiting"
               />
             ) : null}
 
@@ -276,9 +284,9 @@ export function LearningPage({ onSaveSession = null }) {
             {(state.stage === 'answering' || state.stage === 'submitting') &&
             state.plan?.initial_question ? (
               <div className="flex flex-col gap-5">
-                <details className="mb-reading-paper p-4">
+                <details className="mb-reading-paper p-4" onToggle={(event) => { if (event.currentTarget.open) sessionCtrl.requestHelp('source'); }}>
                   <summary className="text-[14px] font-semibold cursor-pointer inline-flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-[#204C43]" aria-hidden="true" />
+                    <BookOpen className="w-4 h-4 text-[var(--mb-accent)]" aria-hidden="true" />
                     <span>Show selected textbook passage</span>
                   </summary>
                   <div className="mt-3">
@@ -289,13 +297,14 @@ export function LearningPage({ onSaveSession = null }) {
                 <UnderstandingForm
                   question={state.plan.initial_question}
                   draft={state.draft}
+                  canSubmit={learningAvailability.available}
                   pending={state.stage === 'submitting'}
                   error={state.error}
                   validationError={state.validationError}
                   canPronounce={speech.status !== 'unsupported'}
                   onPronounceQuestion={speech.pronounce}
                   onDraftChange={sessionCtrl.setDraft}
-                  onSubmit={sessionCtrl.submitAnswer}
+                  onSubmit={() => learningAvailability.available && sessionCtrl.submitAnswer()}
                   onCancelSubmit={sessionCtrl.cancelSubmit}
                 />
               </div>
@@ -326,6 +335,7 @@ export function LearningPage({ onSaveSession = null }) {
                 assistance={state.assistance}
                 previousAttempt={state.evaluatedInitialBaseline}
                 sourceChunks={sourceChunks}
+                canSubmit={learningAvailability.available}
                 pending={state.stage === 'submitting_retry'}
                 error={state.error}
                 validationError={state.validationError}
@@ -333,7 +343,7 @@ export function LearningPage({ onSaveSession = null }) {
                 onPronounceQuestion={speech.pronounce}
                 onDraftChange={sessionCtrl.setDraft}
                 onRequestHelp={sessionCtrl.requestHelp}
-                onSubmit={sessionCtrl.submitAnswer}
+                onSubmit={() => learningAvailability.available && sessionCtrl.submitAnswer()}
                 onCancelSubmit={sessionCtrl.cancelSubmit}
                 onExit={returnToReader}
               />
@@ -357,12 +367,12 @@ export function LearningPage({ onSaveSession = null }) {
             ) : null}
           </>
         ) : null}
-      </div>
+      </StageSurface>
 
       <Dialog
         open={sourceModalOpen}
         title="Original textbook passage"
-        description={`Section ${selectedChunk.id} from ${page.title}`}
+        description={`Selected passage from ${page.title}`}
         onClose={() => {
           sessionCtrl.closeSourceReview();
           setSourceModalOpen(false);

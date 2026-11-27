@@ -41,6 +41,7 @@ export function ApiProvider({
       return data;
     } catch (err) {
       if (controller.signal.aborted || err?.aborted) return null;
+      setHealth(null);
       setHealthError(err);
       setHealthStatus('error');
       return null;

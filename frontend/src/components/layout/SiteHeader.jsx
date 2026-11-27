@@ -1,45 +1,28 @@
+import { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Camera, SlidersHorizontal } from 'lucide-react';
-import { BrandLogo, Button } from '../common';
-
-export function SiteHeader({ onOpenSettings = null, extraNav = null }) {
-  const location = useLocation();
-  const isScan = location.pathname === '/scan';
-
-  return (
-    <header className="mb-chrome-header sticky top-0 z-30 border-b">
-      <div className="mb-shell-container flex min-h-[64px] items-center justify-between gap-3 py-2">
-        <Link
-          to="/"
-          className="inline-flex items-center min-h-[44px] pr-2 no-underline rounded-[6px] text-inherit"
-          aria-label="MindBridge home"
-        >
-          <BrandLogo size={28} />
-        </Link>
-
-        <nav aria-label="Primary" className="flex flex-wrap items-center gap-2">
-          {extraNav}
-          {!isScan ? (
-            <Link
-              to="/scan"
-              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 rounded-[6px] bg-[#204C43] text-white text-[14px] font-semibold no-underline hover:bg-[#193C35] transition-colors duration-150"
-            >
-              <Camera className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>Scan page</span>
-            </Link>
-          ) : null}
-          {onOpenSettings ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={SlidersHorizontal}
-              onClick={onOpenSettings}
-            >
-              Reading settings
-            </Button>
-          ) : null}
-        </nav>
-      </div>
-    </header>
-  );
+import { ScanLine, SlidersHorizontal, Moon, Sun } from 'lucide-react';
+import { BrandLogo, Button, IconButton } from '../common';
+import { usePreferences } from '../../context/PreferencesContext';
+export function SiteHeader({onOpenSettings=null,extraNav=null}) {
+ const {pathname}=useLocation();
+ const headerRef=useRef(null);
+ useEffect(()=>{
+  const sentinel=document.getElementById('mb-scroll-origin');
+  if(!sentinel || !window.IntersectionObserver)return;
+  const observer=new IntersectionObserver(([entry])=>{
+   if(headerRef.current) headerRef.current.dataset.scrolled=String(!entry.isIntersecting);
+  });
+  observer.observe(sentinel);return ()=>observer.disconnect();
+ },[]);
+ const {preferences,updatePreferences}=usePreferences();
+ return <header ref={headerRef} className="mb-chrome-header mb-header">
+  <div className="mb-shell-container mb-header-inner"><Link to="/" className="mb-brand-link" aria-label="MindBridge home"><BrandLogo /></Link>
+   {pathname==='/'?<nav className="mb-home-nav" aria-label="Explore MindBridge"><a href="#how-it-works">How it works</a><a href="#learning">Learning, rethought</a></nav>:<span className="mb-workspace-label">{pathname==='/scan'?'Capture your page':pathname.startsWith('/learn')?'Understanding practice':'Reading workspace'}</span>}
+   <nav aria-label="Primary" className="mb-header-actions">{extraNav}
+    {!onOpenSettings?<IconButton variant="quiet" icon={preferences.theme==='dark'?Sun:Moon} label={preferences.theme==='dark'?'Use light theme':'Use dark theme'} onClick={()=>updatePreferences({theme:preferences.theme==='dark'?'cream':'dark'})}/>:null}
+    {pathname!=='/scan'?<Link to="/scan" className="mb-nav-scan mb-button"><ScanLine size={17} aria-hidden="true" /><span>Scan page</span></Link>:null}
+    {onOpenSettings?<Button className="mb-header-settings" aria-label="Reading settings" variant="secondary" size="sm" icon={SlidersHorizontal} onClick={onOpenSettings}>Reading settings</Button>:null}
+   </nav>
+  </div>
+ </header>;
 }

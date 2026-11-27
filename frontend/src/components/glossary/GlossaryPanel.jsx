@@ -5,6 +5,7 @@ export function GlossaryPanel({
   open,
   entry = null,
   phrase = '',
+  sentence = '',
   status = 'idle',
   error = null,
   canPronounce = false,
@@ -65,27 +66,28 @@ export function GlossaryPanel({
           </Notice>
         ) : null}
 
+        {sentence ? <SourceQuote quote={sentence} label="Original surrounding sentence" /> : null}
         {entry ? (
           <>
-            <div className="rounded-[6px] border border-[#C9D2C8] bg-white p-4 flex flex-col gap-3">
+            <div className="rounded-[6px] border border-[var(--mb-border-subtle)] mb-adaptive-paper bg-[var(--mb-surface)] p-4 flex flex-col gap-3">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D] m-0 mb-1">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-text-muted)] m-0 mb-1">
                   General meaning (AI-generated)
                 </p>
                 <p className="mb-reading-prose-inline m-0">{entry.definition}</p>
               </div>
-              <div className="border-t border-[#C9D2C8] pt-3">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#204C43] m-0 mb-1">
+              <div className="border-t border-[var(--mb-border-subtle)] pt-3">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-accent)] m-0 mb-1">
                   In this textbook passage
                 </p>
                 <p className="mb-reading-prose-inline m-0">{entry.contextual_meaning}</p>
               </div>
               {entry.example ? (
-                <div className="border-t border-[#C9D2C8] pt-3">
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#3F584D] m-0 mb-1">
+                <div className="border-t border-[var(--mb-border-subtle)] pt-3">
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[var(--mb-text-muted)] m-0 mb-1">
                     Example
                   </p>
-                  <p className="text-[15px] text-[#3F584D] m-0">{entry.example}</p>
+                  <p className="text-[15px] text-[var(--mb-text-muted)] m-0">{entry.example}</p>
                 </div>
               ) : null}
             </div>

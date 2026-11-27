@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, ImagePlus, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
 import { AppShell } from '../components/layout/AppShell';
 import { Button, LoadingStatus, Notice } from '../components/common';
+import { CameraDialog } from '../components/scan/CameraDialog';
 import { ImagePreviewCard } from '../components/scan/ImagePreviewCard';
 import { RetakeGuidance } from '../components/scan/RetakeGuidance';
 import { prepareScanImage } from '../lib/image';
@@ -15,10 +16,12 @@ import { describeAvailabilityReason } from '../config/features';
 export function ScanPage() {
   const navigate = useNavigate();
   const { getFeatureState, healthStatus, refreshHealth } = useApi();
-  const { setActivePage } = usePage();
+  const { page: activePage, setActivePage } = usePage();
 
-  const cameraInputRef = useRef(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const galleryInputRef = useRef(null);
+  const imageInvocation = useRef(0);
+  useEffect(() => () => { imageInvocation.current += 1; }, []);
 
   const [prepared, setPrepared] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -39,6 +42,7 @@ export function ScanPage() {
   }, [previewUrl]);
 
   const clearSelection = () => {
+    imageInvocation.current += 1;
     readRequest.reset();
     setRetakeReasons([]);
     setFileError(null);
@@ -47,7 +51,6 @@ export function ScanPage() {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
 
@@ -58,9 +61,11 @@ export function ScanPage() {
     setRetakeReasons([]);
     readRequest.reset();
     setPreparingImage(true);
+    const invocation = ++imageInvocation.current;
 
     try {
       const result = await prepareScanImage(file);
+      if (invocation !== imageInvocation.current) return;
       const nextUrl = URL.createObjectURL(result.blob);
       setPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -68,11 +73,12 @@ export function ScanPage() {
       });
       setPrepared(result);
     } catch (err) {
+      if (invocation !== imageInvocation.current) return;
       setFileError(
         err?.message || 'This image could not be prepared. Choose a JPEG, PNG, or WebP photograph.'
       );
     } finally {
-      setPreparingImage(false);
+      if (invocation === imageInvocation.current) setPreparingImage(false);
     }
   };
 
@@ -94,7 +100,8 @@ export function ScanPage() {
   };
 
   const handleConfirmUpload = async () => {
-    if (!prepared || !readAvailability.available) return;
+    if (!prepared || !readAvailability.available || readRequest.status === 'pending') return;
+    if (activePage && !window.confirm('Read this new page? A successful scan will replace your current page and practice.')) return;
     setRetakeReasons([]);
 
     const outcome = await readRequest.run(prepared.blob);
@@ -122,18 +129,23 @@ export function ScanPage() {
 
   return (
     <AppShell>
-      <div className="mb-shell-container py-8 sm:py-10">
-        <div className="max-w-[960px] mx-auto flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-[28px] sm:text-[34px] font-extrabold tracking-[-0.02em] m-0 text-[#20372D]">
+      <div className="mb-shell-container mb-scan-workspace">
+        <div className="mx-auto flex flex-col gap-6">
+          <div className="mb-scan-heading">
+            <h1 className="text-[28px] sm:text-[34px] font-extrabold tracking-[-0.02em] m-0 text-[var(--mb-text)]">
               Scan a textbook page
             </h1>
-            <p className="text-[16px] text-[#3F584D] max-w-[62ch] m-0">
+            <p className="text-[16px] text-[var(--mb-text-muted)] max-w-[62ch] m-0">
               Take a photo or upload one JPEG, PNG, or WebP image of a single printed English
               textbook page.
             </p>
           </div>
 
+          <ol className="mb-capture-stages" aria-label="Capture stages">
+            <li aria-current={!prepared ? 'step' : undefined}><span>1</span>Choose a page</li>
+            <li aria-current={prepared && !isUploading ? 'step' : undefined}><span>2</span>Check your photo</li>
+            <li aria-current={isUploading ? 'step' : undefined}><span>3</span>Open your reader</li>
+          </ol>
           {!readAvailability.available ? (
             <Notice
               tone={readAvailability.reason === 'health_unknown' ? 'info' : 'warning'}
@@ -156,7 +168,7 @@ export function ScanPage() {
               <p className="m-0">
                 {describeAvailabilityReason(readAvailability.reason, 'Textbook scanning')}
               </p>
-              <p className="m-0 mt-1 text-[13px] text-[#3F584D]">
+              <p className="m-0 mt-1 text-[13px] text-[var(--mb-text-muted)]">
                 You can still select and preview a photo here, or open the labelled sample page from
                 Home to test accessible reading and speech.
               </p>
@@ -169,15 +181,6 @@ export function ScanPage() {
               className="lg:col-span-7 flex flex-col gap-4"
             >
               <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                onChange={handleFileChange}
-                className="sr-only"
-                id="scan-camera-input"
-              />
-              <input
                 ref={galleryInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -187,29 +190,29 @@ export function ScanPage() {
               />
 
               <div
+                data-has-image={Boolean(prepared)}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setIsDragging(true);
                 }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
-                className={`rounded-[12px] border-2 border-dashed p-5 sm:p-6 flex flex-col gap-4 transition-colors duration-150 ${
+                className={`mb-upload-zone rounded-[12px] border-2 border-dashed p-5 sm:p-6 flex flex-col gap-4 transition-colors duration-150 ${
                   isDragging
-                    ? 'border-[#204C43] bg-[#DCE9DF]/55'
-                    : 'border-[#8B9B91] bg-white'
+                    ? 'border-[var(--mb-action)] bg-[var(--mb-support)]/55'
+                    : 'border-[var(--mb-border)] bg-[var(--mb-surface)]'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-[6px] bg-[#DCE9DF] text-[#204C43] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-[6px] bg-[var(--mb-support)] text-[var(--mb-accent)] flex items-center justify-center shrink-0">
                     <Upload className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <h2 className="text-[16px] font-bold m-0 text-[#20372D]">
+                    <h2 className="text-[16px] font-bold m-0 text-[var(--mb-text)]">
                       Choose or drop a page photograph
                     </h2>
-                    <p className="text-[13px] text-[#3F584D] m-0 mt-1">
-                      JPEG, PNG, or WebP up to 20 MiB (automatically resized to fit 8 MiB). Camera
-                      capture opens your device camera when supported.
+                    <p className="text-[13px] text-[var(--mb-text-muted)] m-0 mt-1">
+                      JPEG, PNG, or WebP up to 20 MiB (automatically resized to fit 8 MiB). Live camera capture requires camera permission.
                     </p>
                   </div>
                 </div>
@@ -219,7 +222,7 @@ export function ScanPage() {
                     variant="primary"
                     icon={Camera}
                     disabled={isUploading || preparingImage}
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => setCameraOpen(true)}
                   >
                     Take photo
                   </Button>
@@ -249,6 +252,7 @@ export function ScanPage() {
                   previewUrl={previewUrl}
                   metadata={prepared}
                   disabled={isUploading}
+                  processing={isUploading}
                   onRetake={() => galleryInputRef.current?.click()}
                   onDiscard={clearSelection}
                 />
@@ -282,7 +286,7 @@ export function ScanPage() {
                     </p>
                   ) : null}
                   {readRequest.error.requestId ? (
-                    <p className="m-0 mt-1 text-[12px] text-[#3F584D] font-mono">
+                    <p className="m-0 mt-1 text-[12px] text-[var(--mb-text-muted)] font-mono">
                       Request ID: {readRequest.error.requestId}
                     </p>
                   ) : null}
@@ -295,10 +299,10 @@ export function ScanPage() {
               />
 
               {prepared ? (
-                <div className="rounded-[12px] border border-[#8B9B91] bg-[#DCE9DF]/45 p-4 flex flex-col gap-3">
-                  <div className="flex items-start gap-2.5 text-[13px] text-[#20372D]">
+                <div className="mb-scan-confirm rounded-[12px] p-5 flex flex-col gap-4">
+                  <div className="flex items-start gap-2.5 text-[13px] text-[var(--mb-text)]">
                     <ShieldAlert
-                      className="w-4 h-4 text-[#204C43] shrink-0 mt-0.5"
+                      className="w-4 h-4 text-[var(--mb-accent)] shrink-0 mt-0.5"
                       aria-hidden="true"
                     />
                     <p className="m-0">
@@ -325,12 +329,13 @@ export function ScanPage() {
 
             <aside
               aria-label="Tips for a clear textbook scan"
-              className="lg:col-span-5 rounded-[12px] border border-[#C9D2C8] bg-white p-5 flex flex-col gap-3"
+              className="mb-scan-guidance lg:col-span-5"
             >
-              <h2 className="text-[18px] font-bold m-0 text-[#20372D]">
+              <div className="mb-capture-guide" aria-hidden="true"><div className="mb-page-guide"><span>One page. A clearer picture.</span><div /><div /><div /><div /><div /><div /></div><i /><i /><i /><i /></div>
+              <h2 className="text-[18px] font-bold m-0 text-[var(--mb-text)]">
                 For accurate extraction
               </h2>
-              <ul className="m-0 pl-5 space-y-2 text-[14px] text-[#3F584D]">
+              <ul className="m-0 pl-5 space-y-2 text-[14px] text-[var(--mb-text-muted)]">
                 <li>Place the textbook flat in even daylight or room light.</li>
                 <li>Frame one English printed page at a time without cutting off edges.</li>
                 <li>Hold steady to keep small units, numbers, and scientific terms sharp.</li>
@@ -343,6 +348,7 @@ export function ScanPage() {
           </div>
         </div>
       </div>
+      {cameraOpen ? <CameraDialog onClose={() => setCameraOpen(false)} onUsePhoto={file => { setCameraOpen(false); processSelectedFile(file); }} onGallery={() => { setCameraOpen(false); galleryInputRef.current?.click(); }} /> : null}
     </AppShell>
   );
 }

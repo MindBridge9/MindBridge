@@ -5,9 +5,9 @@ import { AppProviders } from '../App';
 import { ReaderPage } from '../pages/ReaderPage';
 import { usePage } from '../context/PageContext';
 import { useEffect } from 'react';
-import readPartial from '../../../docs/fixtures/read.partial.json';
-import readUnavailable from '../../../docs/fixtures/read.enrichment-unavailable.json';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
+import readPartial from '../test-data/read.partial.json';
+import readUnavailable from '../test-data/read.enrichment-unavailable.json';
+import healthInitial from '../test-data/health.initial.json';
 
 function SeededReader({ pageData }) {
   const { setActivePage } = usePage();

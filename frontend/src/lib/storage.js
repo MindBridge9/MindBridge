@@ -13,6 +13,7 @@ export const DEFAULT_PREFERENCES = Object.freeze({
   voice_uri: null,
   highlight_sentence: true,
   auto_scroll: false,
+  reduce_motion: false,
 });
 
 const VALID_FONT_FAMILIES = new Set(['lexend', 'manrope', 'system', 'opendyslexic']);
@@ -82,6 +83,7 @@ export function validatePreferences(candidate, defaults = DEFAULT_PREFERENCES) {
       typeof candidate.highlight_sentence === 'boolean'
         ? candidate.highlight_sentence
         : defaults.highlight_sentence,
+    reduce_motion: typeof candidate.reduce_motion === 'boolean' ? candidate.reduce_motion : defaults.reduce_motion,
     auto_scroll:
       typeof candidate.auto_scroll === 'boolean' ? candidate.auto_scroll : defaults.auto_scroll,
   };

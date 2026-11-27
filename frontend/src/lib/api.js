@@ -1,3 +1,4 @@
+import { validateResponse } from './validateResponse';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 
 const DEADLINES_MS = {
@@ -44,6 +45,8 @@ function parseRetryAfter(headerValue) {
     const parsed = Number.parseInt(trimmed, 10);
     return parsed > 0 ? parsed : null;
   }
+  const retryAt = Date.parse(trimmed);
+  if (Number.isFinite(retryAt)) return Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
   return null;
 }
 
@@ -143,8 +146,11 @@ async function requestJsonOrMultipart(
 
     const text = await response.text();
     try {
-      return JSON.parse(text);
-    } catch {
+      const data = JSON.parse(text);
+      const kind = { '/api/health': 'HealthResponse', '/api/read': 'ReadResult', '/api/simplify': 'SimplificationResult', '/api/define': 'GlossaryEntry', '/api/explain': 'ConceptExplanation', '/api/prepare-understanding': 'LearningPlan', '/api/check-understanding': 'EvaluationResult' }[path];
+      return validateResponse(kind, data, typeof body === 'string' ? JSON.parse(body) : null);
+    } catch (err) {
+      if (err?.code) throw err;
       throw createNormalizedError({
         origin: 'server',
         code: 'INVALID_SERVER_RESPONSE',

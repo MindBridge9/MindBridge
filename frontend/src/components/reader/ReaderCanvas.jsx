@@ -79,7 +79,7 @@ export function ReaderCanvas({
   return (
     <article
       aria-label="Textbook reading passage"
-      className="mb-reading-paper p-5 sm:p-8 flex flex-col gap-4"
+      className="mb-reader-canvas mb-reading-paper p-5 sm:p-8 flex flex-col gap-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--mb-reading-border-subtle)]">
         <span className="mb-theme-muted text-[12px] font-semibold uppercase tracking-[0.04em]">
@@ -150,11 +150,12 @@ export function ReaderCanvas({
           return (
             <div
               key={chunk.id}
+              id={`section-${chunk.id}`}
               className={`rounded-[8px] border px-3.5 py-3 transition-colors duration-150 ${
                 isSelected
-                  ? 'mb-theme-selected-row border-[#204C43] bg-[#DCE9DF]/30'
+                  ? 'mb-theme-selected-row border-[var(--mb-action)] bg-[var(--mb-support)]/30'
                   : isUncertain
-                    ? 'border-[#9A601C] bg-[#FDF3E1]/40'
+                    ? 'border-[var(--mb-warning)] bg-[var(--mb-warning-bg)]/40'
                     : 'border-transparent'
               }`}
             >
@@ -162,8 +163,8 @@ export function ReaderCanvas({
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     {isSimplified ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] bg-[#204C43] text-white text-[12px] font-semibold">
-                        Simplified (Easy)
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] bg-[var(--mb-action)] text-white text-[12px] font-semibold">
+                        Simplified
                       </span>
                     ) : mode === 'easy' ? (
                       <span className="mb-theme-chip inline-flex items-center px-2 py-0.5 rounded-[4px] border text-[12px] font-semibold">
@@ -172,7 +173,7 @@ export function ReaderCanvas({
                     ) : null}
 
                     {isUncertain ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#FDF3E1] border border-[#9A601C] text-[#9A601C] text-[12px] font-semibold">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[var(--mb-warning-bg)] border border-[var(--mb-warning)] text-[var(--mb-warning)] text-[12px] font-semibold">
                         <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
                         Uncertain text — verify photo
                       </span>
@@ -184,10 +185,10 @@ export function ReaderCanvas({
                       type="button"
                       onClick={() => onSelectChunk(chunk.id)}
                       aria-pressed={isSelected}
-                      className={`min-h-[36px] px-2.5 py-1 rounded-[6px] text-[12px] font-semibold inline-flex items-center gap-1 cursor-pointer border transition-colors duration-150 ${
+                      className={`min-h-[44px] px-2.5 py-1 rounded-[6px] text-[12px] font-semibold inline-flex items-center gap-1 cursor-pointer border transition-colors duration-150 ${
                         isSelected
-                          ? 'bg-[#204C43] text-white border-[#204C43]'
-                          : 'mb-theme-btn-secondary bg-white text-[#20372D] border-[#8B9B91] hover:bg-[#DCE9DF]/50'
+                          ? 'bg-[var(--mb-action)] text-white border-[var(--mb-action)]'
+                          : 'mb-theme-btn-secondary bg-[var(--mb-surface)] text-[var(--mb-text)] border-[var(--mb-border)] hover:bg-[var(--mb-support)]/50'
                       }`}
                     >
                       {isSelected ? <Check className="w-3.5 h-3.5" aria-hidden="true" /> : null}

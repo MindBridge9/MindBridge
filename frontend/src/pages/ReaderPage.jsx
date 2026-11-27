@@ -22,9 +22,9 @@ import { useReadingTools } from '../hooks/useReadingTools';
 export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
   const { pageId } = useParams();
   const navigate = useNavigate();
-  const { page, readability, retakeReasons, imageUrl, sourceOrigin } = usePage();
+  const { page, readability, retakeReasons, imageUrl, sourceOrigin, learningSession, setLearningSession } = usePage();
   const { preferences, storageWarning, updatePreferences, resetPreferences } = usePreferences();
-  const { getFeatureState } = useApi();
+  const { getFeatureState, healthStatus, refreshHealth } = useApi();
 
   const [selectedChunkId, setSelectedChunkId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -32,6 +32,11 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
   const [sourceLensChunkId, setSourceLensChunkId] = useState(null);
 
   const tools = useReadingTools(page);
+
+  useEffect(() => {
+    if (learningSession?.page_id !== pageId || learningSession?.stage === 'results' || !learningSession?.plan || learningSession.assistance?.kinds?.includes('source')) return;
+    setLearningSession({ ...learningSession, assistance: { used: true, kinds: [...(learningSession.assistance?.kinds || []), 'source'] } });
+  }, [pageId, learningSession, setLearningSession]);
 
   useEffect(() => {
     if (!page) return;
@@ -101,6 +106,7 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
   const handleModeChange = async (nextLevel) => {
     speech.stop();
     if (nextLevel === 'original') {
+      tools.cancelSimplify();
       tools.setMode('original');
       return;
     }
@@ -120,6 +126,30 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
   const handleSimplifySelected = async (chunkId) => {
     speech.stop();
     await tools.simplifyChunk(chunkId, 'easy');
+  };
+
+  const readerToolsProps = {
+    page, selectedChunkId, mode: tools.mode,
+    availableLevels: activeSimplifiedItem ? ['original', 'easy'] : ['original'],
+    onCancelSimplify: tools.cancelSimplify,
+    simplifyPending: tools.simplifyStatus === 'pending',
+    simplifyError: tools.simplifyError, simplifiedItem: activeSimplifiedItem,
+    sourceOrigin, capabilities,
+    cachedDefinitions: tools.cachedDefinitions, cachedExplanations: tools.cachedExplanations,
+    onModeChange: handleModeChange, onSimplifySelected: handleSimplifySelected,
+    onOpenSource: setSourceLensChunkId,
+    onLookupTerm: ({ chunkId, phrase, sentence }) => tools.lookupTerm({
+      chunkId, phrase, sentence,
+      allowRemote: sourceOrigin !== 'sample' && capabilities.define?.available,
+    }),
+    onRequestExplain: ({ chunkId, concept }) => tools.requestExplanation({
+      chunkId, concept,
+      allowRemote: sourceOrigin !== 'sample' && capabilities.explain?.available,
+    }),
+    onStartLearning: (chunkId) => {
+      speech.stop();
+      navigate(`/learn/${page.id}/${chunkId}`);
+    },
   };
 
   return (
@@ -156,16 +186,28 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
         />
       }
     >
-      <div className="mb-shell-container py-6 sm:py-8 flex flex-col gap-6">
+      <div className="mb-shell-container mb-reader-workspace py-6 sm:py-8 flex flex-col gap-6">
+        <nav aria-label="Textbook sections" className="mb-section-nav flex flex-wrap items-center gap-3">
+          <label htmlFor="section-navigation" className="font-semibold text-sm">Go to section</label>
+          <select id="section-navigation" className="mb-theme-input min-h-[44px] max-w-full border rounded-[6px] px-3" value={selectedChunkId || ''} onChange={(event) => {
+            setSelectedChunkId(event.target.value);
+            document.getElementById(`section-${event.target.value}`)?.scrollIntoView({ block: 'center' });
+          }}>
+            {page.chunks.filter((chunk) => chunk.kind !== 'heading').map((chunk, index) => <option key={chunk.id} value={chunk.id}>{index + 1}. {chunk.text.slice(0, 55)}{chunk.text.length > 55 ? '…' : ''}</option>)}
+          </select>
+          <Button variant="quiet" size="sm" onClick={refreshHealth} loading={healthStatus === 'pending'}>Refresh server status</Button>
+          {learningSession?.page_id === page.id && learningSession?.plan ? <Button variant="secondary" onClick={() => navigate(`/learn/${page.id}/${learningSession.chunk_id}`)}>Resume practice</Button> : null}
+        </nav>
+        {healthStatus === 'error' ? <Notice tone="warning" title="Server unreachable">New AI requests are unavailable. Your extracted text, generated sections, definitions and explanations remain available for review.</Notice> : null}
         {/* Page title & provenance header */}
-        <header className="flex flex-wrap items-start justify-between gap-4">
+        <header className="mb-reader-heading flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mb-theme-chip px-2.5 py-0.5 rounded-[4px] border text-[12px] font-semibold">
                 {page.title_origin === 'source' ? 'Textbook heading' : 'Generated title'}
               </span>
               {sourceOrigin === 'sample' ? (
-                <span className="px-2.5 py-0.5 rounded-[4px] bg-[#F6E7A5] text-[#20372D] text-[12px] font-semibold">
+                <span className="px-2.5 py-0.5 rounded-[4px] bg-[var(--mb-highlight)] text-[var(--mb-text)] text-[12px] font-semibold">
                   Preprocessed sample
                 </span>
               ) : null}
@@ -180,6 +222,7 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
             size="sm"
             icon={ImageIcon}
             onClick={() => setPhotoOpen(true)}
+            disabled={!imageUrl}
           >
             View original photo
           </Button>
@@ -216,44 +259,12 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
           </Notice>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="mb-reader-grid">
+          <div className="mb-reader-primary">
+            <ReaderTools {...readerToolsProps} group="primary" />
+          </div>
           {/* Primary Reading Surface */}
-          <div className="lg:col-span-8 flex flex-col gap-5">
-            {/* Separate AI Summary Panel */}
-            <section
-              aria-label="Page summary"
-              className="mb-reading-paper p-4 sm:p-5 flex flex-col gap-2"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[15px] font-bold m-0">Page summary (AI-generated)</h2>
-                <span className="mb-theme-muted text-[12px]">Separate from original text</span>
-              </div>
-              {page.summary ? (
-                <>
-                  <p className="mb-reading-prose m-0">{page.summary.text}</p>
-                  {page.summary.source_refs?.length > 0 ? (
-                    <details className="mt-1">
-                      <summary className="text-[13px] font-semibold cursor-pointer">
-                        View summary source quote
-                      </summary>
-                      <div className="mt-2 flex flex-col gap-2">
-                        {page.summary.source_refs.map((ref, idx) => (
-                          <SourceQuote
-                            key={`${ref.chunk_id}-${idx}`}
-                            chunkId={ref.chunk_id}
-                            quote={ref.quote}
-                          />
-                        ))}
-                      </div>
-                    </details>
-                  ) : null}
-                </>
-              ) : (
-                <p className="mb-theme-muted text-[14px] m-0">
-                  Summary unavailable for this page. Original extracted text remains complete below.
-                </p>
-              )}
-            </section>
+          <div className="mb-reader-document flex flex-col gap-5">
 
             <ReaderCanvas
               chunks={page.chunks}
@@ -272,43 +283,47 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
                 })
               }
             />
+            {/* Separate AI Summary Panel */}
+            <section
+              aria-label="Page summary"
+              className="mb-summary-panel mb-reading-paper p-4 sm:p-5 flex flex-col gap-2"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[15px] font-bold m-0">Page summary (AI-generated)</h2>
+                <span className="mb-theme-muted text-[12px]">Separate from original text</span>
+              </div>
+              {page.summary ? (
+                <>
+                  <p className="mb-reading-prose m-0">{page.summary.text}</p>
+                  {page.summary.source_refs?.length > 0 ? (
+                    <details className="mt-1">
+                      <summary className="mb-summary-disclosure text-[13px] font-semibold cursor-pointer">
+                        View summary source quote
+                      </summary>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {page.summary.source_refs.map((ref, idx) => (
+                          <SourceQuote
+                            key={`${ref.chunk_id}-${idx}`}
+                            chunkId={ref.chunk_id}
+                            quote={ref.quote}
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mb-theme-muted text-[14px] m-0">
+                  Summary unavailable for this page. Extracted textbook text remains available below; review any extraction warnings.
+                </p>
+              )}
+            </section>
+
           </div>
 
           {/* Contextual Tools Column */}
-          <div className="lg:col-span-4">
-            <ReaderTools
-              page={page}
-              selectedChunkId={selectedChunkId}
-              mode={tools.mode}
-              availableLevels={activeSimplifiedItem ? ['original', 'easy'] : ['original']}
-              simplifyPending={tools.simplifyStatus === 'pending'}
-              simplifyError={tools.simplifyError}
-              simplifiedItem={activeSimplifiedItem}
-              sourceOrigin={sourceOrigin}
-              capabilities={capabilities}
-              onModeChange={handleModeChange}
-              onSimplifySelected={handleSimplifySelected}
-              onOpenSource={(chunkId) => setSourceLensChunkId(chunkId)}
-              onLookupTerm={({ chunkId, phrase, sentence }) =>
-                tools.lookupTerm({
-                  chunkId,
-                  phrase,
-                  sentence,
-                  allowRemote: sourceOrigin !== 'sample' && capabilities.define?.available,
-                })
-              }
-              onRequestExplain={({ chunkId, concept }) =>
-                tools.requestExplanation({
-                  chunkId,
-                  concept,
-                  allowRemote: sourceOrigin !== 'sample' && capabilities.explain?.available,
-                })
-              }
-              onStartLearning={(chunkId) => {
-                speech.stop();
-                navigate(`/learn/${page.id}/${chunkId}`);
-              }}
-            />
+          <div className="mb-reader-sidebar">
+            <ReaderTools {...readerToolsProps} group="secondary" />
           </div>
         </div>
       </div>
@@ -329,6 +344,7 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
         open={tools.glossaryState.open}
         entry={tools.glossaryState.entry}
         phrase={tools.glossaryState.phrase}
+        sentence={tools.glossaryState.sentence}
         status={tools.glossaryState.status}
         error={tools.glossaryState.error}
         canPronounce={speech.status !== 'unsupported'}

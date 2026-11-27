@@ -12,9 +12,9 @@ import {
   checkLearningAvailability,
   parseReleaseFlags,
 } from '../config/features';
-import defaultFixture from '../../../docs/fixtures/preferences.defaults.json';
-import healthInitial from '../../../docs/fixtures/health.initial.json';
-import readSuccess from '../../../docs/fixtures/read.success.json';
+import defaultFixture from '../test-data/preferences.defaults.json';
+import healthInitial from '../test-data/health.initial.json';
+import readSuccess from '../test-data/read.success.json';
 
 describe('Preferences storage & defaults', () => {
   beforeEach(() => {

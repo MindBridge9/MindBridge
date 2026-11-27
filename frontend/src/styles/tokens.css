@@ -1,58 +1,42 @@
 :root {
-  /* Core MindBridge palette (DESIGN.md) */
-  --mb-bg: #F7F5ED;
+  color-scheme: light;
+  --mb-bg: #FFFFFF;
   --mb-surface: #FFFFFF;
-  --mb-surface-muted: #EFECE0;
-  --mb-text: #20372D;
-  --mb-text-muted: #3F584D;
-  --mb-action: #204C43;
-  --mb-action-hover: #193C35;
+  --mb-surface-muted: #F8F9FC;
+  --mb-text: #111827;
+  --mb-text-muted: #475569;
+  --mb-action: #4F46E5;
+  --mb-action-hover: #3730A3;
   --mb-action-text: #FFFFFF;
-  --mb-support: #DCE9DF;
-  --mb-support-text: #20372D;
-  --mb-highlight: #F6E7A5;
-  --mb-highlight-text: #20372D;
-
-  /* Semantic states (all >=4.5:1 on cream/white) */
-  --mb-success: #356B51;
-  --mb-success-bg: #E6F1EA;
-  --mb-warning: #9A601C;
-  --mb-warning-bg: #FDF3E1;
-  --mb-error: #A63D40;
-  --mb-error-bg: #FAECEC;
-
-  /* Structural borders & focus (>=3:1 against adjacent surface) */
-  --mb-border: #8B9B91;
-  --mb-border-subtle: #C9D2C8;
-  --mb-focus: #204C43;
-
-  /* Typography */
+  --mb-accent: #4F46E5;
+  --mb-support: #F5F3FF;
+  --mb-support-text: #3730A3;
+  --mb-display-size: clamp(44px, 4.8vw, 70px);
+  --mb-specimen-bg: #F8F9FC;
+  --mb-specimen-text: #111827;
+  --mb-highlight: #E4DEFF;
+  --mb-highlight-text: #25205D;
+  --mb-success: #047857;
+  --mb-success-bg: #ECFDF5;
+  --mb-warning: #92400E;
+  --mb-warning-bg: #FFF7ED;
+  --mb-error: #B42338;
+  --mb-error-bg: #FFF1F2;
+  --mb-border: #8290A6;
+  --mb-border-subtle: #E2E8F0;
+  --mb-focus: #6355DC;
   --mb-font-ui: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mb-font-reading-lexend: 'Lexend', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mb-font-reading-manrope: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mb-font-reading-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
-  /* Radii & shadows */
-  --mb-radius-sm: 6px;
-  --mb-radius-md: 12px;
-  --mb-shadow-overlay: 0 12px 32px rgba(32, 55, 45, 0.14), 0 2px 6px rgba(32, 55, 45, 0.08);
-  --mb-shadow-sticky: 0 -4px 16px rgba(32, 55, 45, 0.08);
-
-  /* Layout & motion */
-  --mb-gutter: 16px;
-  --mb-shell-max: 1200px;
-  --mb-transition-fast: 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
-
-  /* Reading preference defaults (overridden dynamically by PreferencesContext) */
-  --mb-reading-bg: #F7F5ED;
-  --mb-reading-surface: #FFFFFF;
-  --mb-reading-surface-muted: #EFECE0;
-  --mb-reading-text: #20372D;
-  --mb-reading-text-muted: #3F584D;
-  --mb-reading-border: #8B9B91;
-  --mb-reading-border-subtle: #C9D2C8;
-  --mb-reading-highlight: #F6E7A5;
-  --mb-reading-highlight-text: #20372D;
+  --mb-font-reading-lexend: 'Lexend', system-ui, sans-serif;
+  --mb-font-reading-manrope: 'Manrope', system-ui, sans-serif;
+  --mb-font-reading-system: system-ui, sans-serif;
+  --mb-radius-sm: 8px;
+  --mb-radius-md: 14px;
+  --mb-shadow-overlay: 0 24px 80px rgb(15 23 42 / .22);
+  --mb-shadow-sticky: 0 -4px 24px rgb(15 23 42 / .04);
+  --mb-gutter: 20px;
+  --mb-shell-max: 1240px;
+  --mb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --mb-transition-fast: 160ms var(--mb-ease-out);
   --mb-reading-font: var(--mb-font-reading-lexend);
   --mb-reading-size: 20px;
   --mb-reading-line-height: 1.8;
@@ -60,85 +44,54 @@
   --mb-reading-word-spacing: 0em;
   --mb-reading-width: 65ch;
 }
-
-@media (min-width: 640px) {
-  :root {
-    --mb-gutter: 24px;
-  }
+:root, [data-reading-theme] {
+  --mb-reading-bg: var(--mb-bg);
+  --mb-reading-surface: var(--mb-surface);
+  --mb-reading-surface-muted: var(--mb-surface-muted);
+  --mb-reading-text: var(--mb-text);
+  --mb-reading-text-muted: var(--mb-text-muted);
+  --mb-reading-border: var(--mb-border);
+  --mb-reading-border-subtle: var(--mb-border-subtle);
+  --mb-reading-highlight: var(--mb-highlight);
+  --mb-reading-highlight-text: var(--mb-highlight-text);
 }
-
-@media (min-width: 1024px) {
-  :root {
-    --mb-gutter: 32px;
-  }
-}
-
-/* Theme variants applied to reading/learning surfaces */
-[data-reading-theme='cream'] {
-  --mb-reading-bg: #F7F5ED;
-  --mb-reading-surface: #FFFFFF;
-  --mb-reading-surface-muted: #EFECE0;
-  --mb-reading-text: #20372D;
-  --mb-reading-text-muted: #3F584D;
-  --mb-reading-border: #8B9B91;
-  --mb-reading-border-subtle: #C9D2C8;
-  --mb-reading-highlight: #F6E7A5;
-  --mb-reading-highlight-text: #20372D;
-}
-
-[data-reading-theme='paper'] {
-  --mb-reading-bg: #FFFFFF;
-  --mb-reading-surface: #FAF8F2;
-  --mb-reading-surface-muted: #F2EFE4;
-  --mb-reading-text: #20372D;
-  --mb-reading-text-muted: #3F584D;
-  --mb-reading-border: #8B9B91;
-  --mb-reading-border-subtle: #C9D2C8;
-  --mb-reading-highlight: #F6E7A5;
-  --mb-reading-highlight-text: #20372D;
-}
-
+/* Retain persisted enum values. “cream” is the refreshed light presentation. */
+[data-reading-theme='paper'] { --mb-bg: #FFFFFF; --mb-surface-muted: #F5F6FA; }
 [data-reading-theme='dark'] {
-  --mb-reading-bg: #17251F;
-  --mb-reading-surface: #1F322A;
-  --mb-reading-surface-muted: #263E34;
-  --mb-reading-text: #F7F5ED;
-  --mb-reading-text-muted: #D5E2DA;
-  --mb-reading-border: #7E9B8E;
-  --mb-reading-border-subtle: #3B594C;
-  --mb-reading-highlight: #204C43;
-  --mb-reading-highlight-text: #F7F5ED;
-  --mb-focus: #F6E7A5;
+  color-scheme: dark;
+  --mb-bg: #0F1422;
+  --mb-specimen-bg: #171E30;
+  --mb-specimen-text: #EDF1FA;
+  --mb-surface: #171E30;
+  --mb-surface-muted: #222B40;
+  --mb-text: #EDF1FA;
+  --mb-text-muted: #B5C0D4;
+  --mb-accent: #C0B8FF;
+  --mb-support: #2D2850;
+  --mb-support-text: #DCD6FF;
+  --mb-highlight: #3C3267;
+  --mb-highlight-text: #F3EEFF;
+  --mb-success: #6EE7B7;
+  --mb-success-bg: #17382F;
+  --mb-warning: #FCD0A2;
+  --mb-warning-bg: #3C2C22;
+  --mb-error: #FFB3BF;
+  --mb-error-bg: #402631;
+  --mb-border: #71819B;
+  --mb-border-subtle: #303C52;
+  --mb-focus: #C0B8FF;
 }
-
-@keyframes mb-dialog-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@media (min-width:640px) { :root { --mb-gutter:28px; } }
+@media (min-width:1024px) { :root { --mb-gutter:40px; } }
+:root {
+ --mb-art-lavender:#EDE8FF; --mb-art-lavender-ink:#40338E;
+ --mb-art-sky:#E1F2FF; --mb-art-sky-ink:#225878;
+ --mb-art-mint:#DDF3E6; --mb-art-mint-ink:#226148;
+ --mb-art-peach:#FFE9DB; --mb-art-peach-ink:#8A461E;
 }
-
-.mb-dialog-panel {
-  animation: mb-dialog-enter 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --mb-transition-fast: 0ms;
-  }
-
-  .mb-dialog-panel {
-    animation: none;
-  }
-
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+[data-reading-theme='dark'] {
+ --mb-art-lavender:#30294D; --mb-art-lavender-ink:#D4C7FF;
+ --mb-art-sky:#20384B; --mb-art-sky-ink:#B6DEFA;
+ --mb-art-mint:#203E33; --mb-art-mint-ink:#AAE2C3;
+ --mb-art-peach:#483025; --mb-art-peach-ink:#F7C5A7;
 }

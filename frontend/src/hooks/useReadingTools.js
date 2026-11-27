@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { defineTerm, explainConcept, simplify } from '../lib/api';
+import { validateResponse } from '../lib/validateResponse';
 import { buildSourceContext } from '../lib/sourceContext';
 import { splitTextIntoSentences } from '../components/speech/segmentDisplayedChunks';
 import { useApiRequest } from './useApiRequest';
@@ -68,9 +69,9 @@ export function useReadingTools(page) {
     error: null,
   });
 
-  const simplifyReq = useApiRequest(simplify);
-  const defineReq = useApiRequest(defineTerm);
-  const explainReq = useApiRequest(explainConcept);
+  const simplifyReq = useApiRequest(async (request, options) => validateResponse('SimplificationResult', await simplify(request, options), request));
+  const defineReq = useApiRequest(async (request, options) => validateResponse('GlossaryEntry', await defineTerm(request, options), request));
+  const explainReq = useApiRequest(async (request, options) => validateResponse('ConceptExplanation', await explainConcept(request, options), request));
 
   // Track active in-flight lookup keys to avoid duplicate concurrent calls
   const inflightSimplifyRef = useRef(null);
@@ -86,7 +87,7 @@ export function useReadingTools(page) {
         return { ok: true, item: simplificationCache[cacheKey] };
       }
 
-      if (inflightSimplifyRef.current === cacheKey && simplifyReq.status === 'pending') {
+      if (inflightSimplifyRef.current === cacheKey) {
         return null;
       }
 
@@ -103,7 +104,8 @@ export function useReadingTools(page) {
         });
 
         if (outcome?.ok && outcome.data?.items?.length) {
-          const item = outcome.data.items.find((i) => i.chunk_id === chunkId) || outcome.data.items[0];
+          const item = outcome.data.items.find((i) => i.chunk_id === chunkId);
+          if (!item || outcome.data.page_id !== page.id || outcome.data.level !== level || outcome.data.items.length !== 1) return { ok: false };
           cacheSimplification(cacheKey, item);
           setMode(level);
           return { ok: true, item };
@@ -127,9 +129,11 @@ export function useReadingTools(page) {
       const normPhrase = normalizeKey(cleanPhrase);
       const cleanSentence = (sentence || '').trim();
 
+      if (inflightDefineRef.current === `${page.id}:${chunkId || 'any'}:${normPhrase}:${cleanSentence}:en`) return;
+      defineReq.cancel();
       // 1. Check initial PageDoc glossary first (no extra API call needed)
       const initialMatch = Array.isArray(page.glossary)
-        ? page.glossary.find((g) => normalizeKey(g.phrase) === normPhrase)
+        ? page.glossary.find((g) => normalizeKey(g.phrase) === normPhrase && g.source_refs.some((ref) => ref.chunk_id === chunkId))
         : null;
 
       if (initialMatch) {
@@ -177,7 +181,7 @@ export function useReadingTools(page) {
         return;
       }
 
-      if (inflightDefineRef.current === cacheKey && defineReq.status === 'pending') {
+      if (inflightDefineRef.current === cacheKey) {
         return;
       }
 
@@ -243,6 +247,8 @@ export function useReadingTools(page) {
       const cleanConcept = concept.trim();
       const cacheKey = `${page.id}:${chunkId}:${normalizeKey(cleanConcept)}:en`;
 
+      if (inflightExplainRef.current === cacheKey) return;
+      explainReq.cancel();
       if (explanationCache[cacheKey]) {
         setExplanationState({
           open: true,
@@ -271,7 +277,7 @@ export function useReadingTools(page) {
         return;
       }
 
-      if (inflightExplainRef.current === cacheKey && explainReq.status === 'pending') {
+      if (inflightExplainRef.current === cacheKey) {
         return;
       }
 
@@ -341,6 +347,12 @@ export function useReadingTools(page) {
     mode,
     setMode,
     simplificationCache,
+    cachedDefinitions: page ? Object.entries(definitionCache).map(([key, entry]) => {
+      const chunkId = key.slice(page.id.length + 1).split(':')[0];
+      const prefix = `${page.id}:${chunkId}:${normalizeKey(entry.phrase)}:`;
+      return { entry, chunkId, phrase: entry.phrase, sentence: key.slice(prefix.length, -3) };
+    }) : [],
+    cachedExplanations: page ? Object.entries(explanationCache).map(([key, explanation]) => ({ chunkId: key.slice(page.id.length + 1).split(':')[0], concept: explanation.concept })) : [],
     simplifyStatus: simplifyReq.status,
     simplifyError: simplifyReq.error,
     simplifyChunk,

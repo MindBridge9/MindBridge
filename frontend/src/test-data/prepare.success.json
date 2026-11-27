@@ -1,0 +1,40 @@
+{
+  "id": "plan-1",
+  "page_id": "2b9fa570-b8dd-4e74-a827-3c50a8174e91",
+  "chunk_id": "c0002",
+  "target_concept": "How plants make glucose",
+  "objective": {
+    "id": "objective-1",
+    "description": "Distinguish the energy source from the materials used to make glucose.",
+    "criteria": [
+      {
+        "id": "energy",
+        "description": "Sunlight supplies light energy.",
+        "source_refs": [
+          {
+            "chunk_id": "c0002",
+            "quote": "light energy from sunlight"
+          }
+        ]
+      },
+      {
+        "id": "materials",
+        "description": "Plants make glucose from carbon dioxide and water.",
+        "source_refs": [
+          {
+            "chunk_id": "c0002",
+            "quote": "make glucose from carbon dioxide and water"
+          }
+        ]
+      }
+    ]
+  },
+  "initial_question": {
+    "id": "question-1",
+    "text": "Explain how sunlight, carbon dioxide and water help plants make glucose.",
+    "criterion_ids": [
+      "energy",
+      "materials"
+    ]
+  }
+}
