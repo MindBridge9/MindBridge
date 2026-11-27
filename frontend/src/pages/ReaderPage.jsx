@@ -82,8 +82,12 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
 
   const speech = useSpeechQueue({
     sentences: segmented.sentences,
+    playbackKey: `${pageId}:${tools.mode}`,
     voiceUri: preferences.voice_uri,
     rate: preferences.speech_rate,
+    locale: preferences.speech_locale,
+    allowRemote: preferences.allow_remote_speech,
+    continuity: preferences.speech_continuity,
     highlightSentence: preferences.highlight_sentence,
     autoScroll: preferences.auto_scroll,
   });
@@ -176,6 +180,8 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
           activeIndex={speech.activeIndex}
           totalSentences={segmented.sentences.length}
           errorMessage={speech.errorMessage}
+          playbackNote={speech.playbackNote}
+          previewing={speech.previewing}
           onPlay={speech.play}
           onPause={speech.pause}
           onResume={speech.resume}
@@ -332,10 +338,15 @@ export function ReaderPage({ onSaveCurrentPage = null, isSavedPage = false }) {
         open={settingsOpen}
         preferences={preferences}
         voices={speech.voices}
+        onPreviewVoice={speech.previewVoice}
+        onRefreshVoices={speech.refreshVoices}
+        onStopPreview={speech.stop}
+        previewing={speech.previewing}
+        speechError={speech.errorMessage}
         storageWarning={storageWarning}
         onChange={updatePreferences}
         onReset={resetPreferences}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => { if(speech.previewing) speech.stop(); setSettingsOpen(false); }}
       />
 
       <PhotoDialog open={photoOpen} imageUrl={imageUrl} onClose={() => setPhotoOpen(false)} />

@@ -79,8 +79,12 @@ export function LearningPage({ onSaveSession = null }) {
 
   const speech = useSpeechQueue({
     sentences: [],
+    playbackKey: `${pageId}:${chunkId}:${sessionCtrl.state.stage}`,
     voiceUri: preferences.voice_uri,
     rate: preferences.speech_rate,
+    locale: preferences.speech_locale,
+    allowRemote: preferences.allow_remote_speech,
+    continuity: preferences.speech_continuity,
   });
 
   const { state, prepare } = sessionCtrl;
@@ -397,10 +401,15 @@ export function LearningPage({ onSaveSession = null }) {
         open={settingsOpen}
         preferences={preferences}
         voices={speech.voices}
+        onPreviewVoice={speech.previewVoice}
+        onRefreshVoices={speech.refreshVoices}
+        onStopPreview={speech.stop}
+        previewing={speech.previewing}
+        speechError={speech.errorMessage}
         storageWarning={storageWarning}
         onChange={updatePreferences}
         onReset={resetPreferences}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => { if(speech.previewing) speech.stop(); setSettingsOpen(false); }}
       />
     </AppShell>
   );

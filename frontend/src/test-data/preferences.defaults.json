@@ -7,9 +7,12 @@
   "word_spacing_em": 0,
   "reading_width_ch": 65,
   "theme": "cream",
-  "speech_rate": 1,
+  "speech_rate": 0.9,
   "voice_uri": null,
   "highlight_sentence": true,
   "auto_scroll": false,
-  "reduce_motion": false
+  "reduce_motion": false,
+  "speech_locale": "en-IN",
+  "allow_remote_speech": false,
+  "speech_continuity": "auto"
 }

@@ -1,0 +1,27 @@
+{
+  "health": [
+    {
+      "url": "http://127.0.0.1:8000/api/health",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/health",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/health",
+      "failure": {
+        "errorText": "net::ERR_CONNECTION_REFUSED"
+      }
+    }
+  ],
+  "theme": {
+    "filter": "none",
+    "colorScheme": "light",
+    "theme": "cream"
+  }
+}

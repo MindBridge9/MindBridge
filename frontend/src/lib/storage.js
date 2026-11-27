@@ -9,7 +9,10 @@ export const DEFAULT_PREFERENCES = Object.freeze({
   word_spacing_em: 0,
   reading_width_ch: 65,
   theme: 'cream',
-  speech_rate: 1,
+  speech_rate: 0.9,
+  speech_locale: 'en-IN',
+  allow_remote_speech: false,
+  speech_continuity: 'auto',
   voice_uri: null,
   highlight_sentence: true,
   auto_scroll: false,
@@ -78,6 +81,9 @@ export function validatePreferences(candidate, defaults = DEFAULT_PREFERENCES) {
     speech_rate: clampNumber(candidate.speech_rate, 0.6, 1.4, defaults.speech_rate, {
       precision: 2,
     }),
+    speech_locale: ['en-IN','en-GB','en-US'].includes(candidate.speech_locale) ? candidate.speech_locale : defaults.speech_locale,
+    allow_remote_speech: candidate.allow_remote_speech === true,
+    speech_continuity: candidate.speech_continuity === 'sentence' ? 'sentence' : 'auto',
     voice_uri,
     highlight_sentence:
       typeof candidate.highlight_sentence === 'boolean'

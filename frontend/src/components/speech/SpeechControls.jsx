@@ -8,6 +8,8 @@ export function SpeechControls({
   activeIndex = -1,
   totalSentences = 0,
   errorMessage = null,
+  playbackNote = null,
+  previewing = false,
   onPlay,
   onPause,
   onResume,
@@ -93,8 +95,8 @@ export function SpeechControls({
               {errorMessage}
             </span>
           ) : (
-            <span className="mb-tabular mb-theme-muted text-[13px] font-medium">
-              {isActive && activeIndex >= 0
+            <span role="status" title={playbackNote || undefined} className="mb-tabular mb-theme-muted text-[13px] font-medium">
+              {previewing ? 'Voice preview' : isActive && activeIndex >= 0
                 ? `Sentence ${activeIndex + 1} of ${totalSentences}`
                 : totalSentences > 0
                   ? `${totalSentences} sentences ready`
@@ -107,12 +109,13 @@ export function SpeechControls({
               size="sm"
               icon={SlidersHorizontal}
               onClick={onOpenSettings}
-              className="hidden sm:inline-flex"
+
             >
               Settings
             </Button>
           ) : null}
         </div>
+        {playbackNote ? <span className="text-xs text-[var(--mb-text-muted)]">{playbackNote}</span> : null}
       </div>
     </aside>
   );

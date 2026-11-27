@@ -1,3 +1,4 @@
+import { VoiceSettings } from '../speech/VoiceSettings';
 import { RotateCcw } from 'lucide-react';
 import { Button, Dialog, Field, Notice, RangeInput, SegmentedControl, Select } from '../common';
 
@@ -17,6 +18,7 @@ export function ReadingSettingsDialog({
   open,
   preferences,
   voices = [],
+  onPreviewVoice, onRefreshVoices, onStopPreview, previewing = false, speechError = null,
   storageWarning = null,
   onChange,
   onReset,
@@ -141,31 +143,7 @@ export function ReadingSettingsDialog({
           />
         </div>
 
-        <Field
-          label="Read-aloud voice"
-          hint={
-            voices.length === 0
-              ? 'No browser speech voices detected yet. Your device default will be used if available.'
-              : 'Uses voices installed in your browser.'
-          }
-        >
-          {(fieldProps) => (
-            <Select
-              {...fieldProps}
-              value={preferences.voice_uri || ''}
-              onChange={(event) =>
-                onChange({ voice_uri: event.target.value ? event.target.value : null })
-              }
-            >
-              <option value="">Browser default voice</option>
-              {voices.map((voice) => (
-                <option key={voice.voiceURI} value={voice.voiceURI}>
-                  {voice.name} ({voice.lang})
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+        <VoiceSettings preferences={preferences} voices={voices} onChange={onChange} onPreview={onPreviewVoice} onRefresh={onRefreshVoices} onStopPreview={onStopPreview} previewing={previewing} errorMessage={speechError} />
 
         <label className="flex items-center gap-3 min-h-[44px] cursor-pointer text-[14px] font-medium">
           <input type="checkbox" className="w-5 h-5 accent-[var(--mb-action)]" checked={Boolean(preferences.reduce_motion)} onChange={event => onChange({reduce_motion:event.target.checked})} />

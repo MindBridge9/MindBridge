@@ -3,25 +3,21 @@ export function splitTextIntoSentences(text) {
     return [];
   }
 
-  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
-    const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
-    const segments = [];
-    for (const part of segmenter.segment(text)) {
-      if (part.segment.length > 0) {
-        segments.push(part.segment);
-      }
-    }
-    if (segments.length > 0 && segments.join('') === text) {
-      return segments;
-    }
+  // Conservative English boundaries: never split decimals, initials or common abbreviations.
+  const parts = []; let start = 0;
+  const abbreviations = /(?:\b(?:Mr|Mrs|Ms|Dr|Prof|Fig|Figs|Eq|Eqs|No|Nos|vs|approx|vol|wt)|e\.g|i\.e)\.$/i;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (!'.!?'.includes(char)) continue;
+    if (char === '.' && (/\d/.test(text[index-1] || '') && /\d/.test(text[index+1] || '') || abbreviations.test(text.slice(start,index+1)) || /\b[A-Z]\.$/.test(text.slice(start,index+1)))) continue;
+    let end = index + 1;
+    while (end < text.length && /[.!?"'”’)]/.test(text[end])) end += 1;
+    if (end < text.length && !/\s/.test(text[end])) continue;
+    while (end < text.length && /\s/.test(text[end])) end += 1;
+    parts.push(text.slice(start,end)); start = end; index = end - 1;
   }
-
-  // Conservative fallback preserving every displayed character including trailing whitespace
-  const matches = text.match(/[^.!?]+(?:[.!?]+(?=\s|$)\s*|\s*$)|[.!?]+\s*/g);
-  if (matches && matches.join('') === text) {
-    return matches;
-  }
-  return [text];
+  if (start < text.length) parts.push(text.slice(start));
+  return parts.length ? parts : [text];
 }
 
 export function segmentDisplayedChunks({ pageId = 'page', chunks = [], displayByChunkId = {} } = {}) {
@@ -32,14 +28,15 @@ export function segmentDisplayedChunks({ pageId = 'page', chunks = [], displayBy
     const display = displayByChunkId?.[chunk.id];
     const level = display?.level || 'original';
     const text = typeof display?.text === 'string' ? display.text : chunk.text;
-    const parts = splitTextIntoSentences(text);
+    const paragraphs = text.split(/(?<=\n)(?=\n)/);
+    const parts = paragraphs.flatMap((paragraph, paragraphIndex) => splitTextIntoSentences(paragraph).map(text => ({text,paragraphIndex})));
+    let offset = 0;
 
-    const chunkSentences = parts.map((segmentText, index) => ({
-      id: `${pageId}:${chunk.id}:${level}:${index}`,
-      chunkId: chunk.id,
-      level,
-      text: segmentText,
-    }));
+    const chunkSentences = parts.map((part, index) => {
+      const startOffset = offset; offset += part.text.length;
+      return { id: `${pageId}:${chunk.id}:${level}:${index}`, chunkId: chunk.id, level, text:part.text,
+        paragraphIndex:part.paragraphIndex, startOffset, endOffset:offset };
+    });
 
     byChunkId[chunk.id] = {
       level,
